@@ -142,8 +142,10 @@
   .dpad .btn { padding: 0; border-radius: 14px; }
   .dpad .ok { border-radius: 50%; font-weight: 700; background: #20252e; }
   .remote details { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
-  .remote summary { cursor: pointer; color: var(--muted); font-size: 12px; list-style: none; text-align: center; }
-  .remote summary::-webkit-details-marker { display: none; }
+  .remote summary, .rm-more summary { cursor: pointer; color: var(--muted); font-size: 12px; list-style: none; text-align: center; }
+  .remote summary::-webkit-details-marker, .rm-more summary::-webkit-details-marker { display: none; }
+  .rm-more summary { font-size: 14px; padding: 4px 0; }
+  .rm-more .apps, .rm-more .textrow { margin-top: 10px; }
   .apps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin: 8px 0; }
   .apps .btn { font-size: 12px; padding: 7px 4px; }
   /* text field with a send arrow inside it */
@@ -204,12 +206,20 @@
   @media (max-width: 760px) {
     header { padding: 8px 12px; min-height: 52px; gap: 8px; }
     header .brand { font-size: 17px; }
+    /* never wider than the phone: chips shrink and truncate instead of widening the page */
+    header .chips { flex: 1 1 0; min-width: 0; overflow: hidden; flex-wrap: nowrap; }
+    header .chip { min-width: 0; max-width: 100%; }
+    header .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    header .spacer { display: none; }
+    header .portsel, header .usermenu { flex: none; }
+    .stagebar #btnPin { display: none; }
+    .playerwrap.pseudo-fs .stagebar #btnPin { display: inline-block; }
     main { padding: 8px 8px calc(16px + env(safe-area-inset-bottom)); }
     .stage { max-height: none; border-radius: 12px; }
     .stagebar { left: 8px; bottom: 8px; gap: 4px; }
-    .stagebar button { padding: 5px 9px; }
+    .stagebar button { padding: 5px 7px; }
     .stagebar .vol { padding: 3px 8px; gap: 6px; }
-    .stagebar .vol input { width: 84px; }
+    .stagebar .vol input { width: 58px; }
     .hint { display: none !important; }
     .remote { position: static; transform: none; width: auto; margin: 12px auto 0; max-width: 420px; padding: 14px;
       background: var(--panel); border-color: var(--line); backdrop-filter: none; max-height: none; overflow: visible; }
@@ -298,6 +308,49 @@
   .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #1c2128; border: 1px solid var(--line2);
     padding: 9px 16px; border-radius: 10px; display: none; max-width: 90vw; z-index: 100; }
   .toast.bad { background: #2a1416; border-color: var(--bad); color: #ffd7d8; }
+
+  /* ---- swipe gestures (player layer + remote-mode touchpad) ---- */
+  .glayer { position: absolute; inset: 0; z-index: 2; touch-action: none; -webkit-user-select: none; user-select: none; cursor: grab; }
+  .glayer:active { cursor: grabbing; }
+  .gfx { position: absolute; left: 50%; top: 50%; width: 88px; height: 88px; margin: -44px 0 0 -44px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 34px; font-weight: 700; color: var(--accent);
+    background: rgba(11,13,16,.55); border: 2px solid var(--accent); opacity: 0; transform: scale(.7);
+    transition: opacity .35s, transform .35s; pointer-events: none; }
+  .gfx.show { opacity: 1; transform: scale(1); transition: none; }
+  .stagebar #btnGest.on { border-color: var(--accent); color: var(--accent); }
+
+  /* ---- remote mode (phone as a controller) ---- */
+  body.remote-mode main { max-width: 560px; }
+  .rmode { display: flex; flex-direction: column; gap: 12px; padding-bottom: env(safe-area-inset-bottom); }
+  .rm-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .rm-top .chip { flex: 1 1 auto; min-width: 0; }
+  .rm-top .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rm-preview { display: block; width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #000;
+    border-radius: 12px; border: 1px solid var(--line); }
+  .pad { position: relative; height: min(48vh, 420px); min-height: 220px; border-radius: 24px; overflow: hidden;
+    background: radial-gradient(circle at 50% 38%, #1f252f, #111419 70%); border: 1px solid var(--line2);
+    touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    display: grid; place-items: center; overscroll-behavior: contain; }
+  .pad:active { border-color: var(--accent); }
+  .rmode:has(.rm-preview:not([hidden])) .pad { height: min(30vh, 300px); min-height: 180px; }
+  .padhint { color: var(--muted); text-align: center; font-size: 13px; line-height: 1.7; pointer-events: none; padding: 0 16px; }
+  .padhint b { color: var(--text); font-weight: 600; }
+  .rm-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .rm-keys .btn { height: 56px; font-size: 21px; border-radius: 14px; padding: 0; }
+  .rm-keys .btn.na { opacity: .3; }
+  .rm-more details { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+  .rm-foot { text-align: center; }
+  .rm-foot button { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 8px; }
+  #modeSheet { width: min(420px, 94vw); }
+  .modechoice { display: grid; gap: 10px; }
+  #modeSheet .dlg-head h2 { font-size: 15px; }
+  .modechoice .btn { justify-content: flex-start; text-align: left; padding: 14px 16px; height: auto; border-radius: 14px;
+    white-space: normal; width: 100%; gap: 12px; }
+  .modechoice .btn > span:last-child { min-width: 0; flex: 1; }
+  .modechoice .btn b { display: block; font-size: 16px; }
+  .modechoice .btn small { display: block; color: var(--muted); line-height: 1.4; margin-top: 2px; }
+  .modechoice .btn.accent small { color: var(--accent-ink); opacity: .8; }
+  .modechoice .btn span.ico { font-size: 26px; margin-right: 4px; }
 </style>
 </head>
 <body>
@@ -322,6 +375,7 @@
     <div class="menu" id="menu" hidden>
       <div class="who"><b id="menuName"></b><small id="menuRole"></small></div>
       <button id="mSettings" hidden>⚙ Settings</button>
+      <button id="mMode" hidden>🎮 Remote mode</button>
       <button id="mAccount">👤 My account</button>
       <button id="mLogout">↪ Sign out</button>
     </div>
@@ -333,6 +387,35 @@
     <span>⚠ The remote isn't paired yet.</span>
     <button class="btn small accent" id="bannerPair">Pair now</button>
   </div>
+
+  <section class="rmode" id="rmode" hidden aria-label="Remote control">
+    <div class="rm-top">
+      <span class="chip" id="chipFollow" title="Which TV this phone controls"><i></i><span>Following your screen</span></span>
+      <button class="btn small" id="rmFollow" type="button">Stop following</button>
+      <button class="btn small" id="rmPreviewBtn" type="button" title="Show a small live picture of the TV">🖼</button>
+    </div>
+    <img class="rm-preview" id="rmPreview" alt="Live picture of the TV" hidden>
+    <div class="pad" id="pad">
+      <div class="padhint"><b>Swipe</b> to move · <b>tap</b> for OK<br><b>hold</b> for Back · <b>swipe and hold</b> keeps moving</div>
+      <div class="gfx" id="padfx"></div>
+    </div>
+    <div class="rm-keys">
+      <button class="btn" data-key="BACK" title="Back">↩</button>
+      <button class="btn" data-key="HOME" title="Home">⌂</button>
+      <button class="btn" data-key="MENU" title="Menu">☰</button>
+      <button class="btn" data-key="MEDIA_PLAY_PAUSE" title="Play/Pause">⏯</button>
+      <button class="btn" data-key="VOLUME_DOWN" title="Volume down">🔉</button>
+      <button class="btn" data-key="VOLUME_MUTE" title="Mute">🔇</button>
+      <button class="btn" data-key="VOLUME_UP" title="Volume up">🔊</button>
+      <button class="btn danger" data-key="POWER" title="Power">⏻</button>
+      <button class="btn" data-key="MEDIA_REWIND" title="Rewind">⏪</button>
+      <button class="btn" data-key="SEARCH" title="Search">🔍</button>
+      <button class="btn" data-key="SETTINGS" title="Device settings">⚙</button>
+      <button class="btn" data-key="MEDIA_FAST_FORWARD" title="Fast forward">⏩</button>
+    </div>
+    <div class="rm-more" id="rmMore"></div>
+    <div class="rm-foot"><button type="button" id="rmWatch">📺 Watch on this device instead</button></div>
+  </section>
 
   <div class="playerwrap" id="wrap">
   <div class="stage" id="stage">
@@ -348,6 +431,7 @@
       <span class="spinner" aria-hidden="true"></span><span id="stageText">Connecting to the TV</span><span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>
       <small id="stageSecs"></small>
     </div></div>
+    <div class="glayer" id="glayer" hidden title="Swipe to move · double-tap for OK · hold for Back"><div class="gfx" id="gfx"></div></div>
     <button class="tapstart" id="tapToStart" hidden>▶ Tap to start</button>
     <div class="stagebar">
       <button id="btnSound" title="Sound on/off (M)">🔇</button>
@@ -359,6 +443,7 @@
       <button id="btnMix" title="Sound mixer: voices, leveling, bass, treble (X)" aria-expanded="false">🎚</button>
       <button id="btnQ" title="Video quality: Auto / HD 1080p / SD 720p (Q)">Auto</button>
       <button id="btnFull" title="Fullscreen (F)">⛶</button>
+      <button id="btnGest" hidden title="Swipe gestures on the picture (G): swipe = arrows, double-tap = OK, hold = Back">👆</button>
       <button id="btnPin" hidden title="Keep the remote visible">📌</button>
     </div>
   </div>
@@ -616,6 +701,16 @@
   </div>
 </dialog>
 
+<!-- ============ Phone: watch or remote? ============ -->
+<dialog id="modeSheet">
+  <div class="dlg-head"><h2>How do you want to use this phone?</h2></div>
+  <div class="dlg-body modechoice">
+    <button class="btn" id="msWatch" type="button"><span class="ico">📺</span><span><b>Watch here</b><small>The TV's picture and sound on this phone, with the remote.</small></span></button>
+    <button class="btn accent" id="msRemote" type="button"><span class="ico">🎮</span><span><b>Use as a remote</b><small>A touchpad and buttons that control the TV you're watching elsewhere. No video, so it saves data.</small></span></button>
+    <p class="help" style="margin:4px 0 0">You can switch any time from the menu at the top right.</p>
+  </div>
+</dialog>
+
 <!-- ============ My account ============ -->
 <dialog id="account" style="width:min(420px, 94vw)">
   <div class="dlg-head"><h2>My account</h2><button class="btn ghost small" data-close>✕</button></div>
@@ -687,6 +782,10 @@ const KIND_SHORT = { androidtv: 'Android TV', firetv: 'Fire TV', appletv: 'Apple
 const portUrl = path => `/api/ports/${curPort ? curPort.id : 0}${path}`;
 const isAdmin = user.role === 'admin';
 const canControl = user.can_control;
+// Remote mode: this page is only a controller (touchpad + buttons), no video. /remote opens it directly.
+const MODE_KEY = 'tanchtv.mode';
+if (location.pathname === '/remote' && canControl) store.set(MODE_KEY, 'remote');
+const uiMode = canControl && store.get(MODE_KEY) === 'remote' ? 'remote' : 'watch';
 $('avatar').textContent = (user.display_name || user.username)[0].toUpperCase();
 $('whoName').textContent = user.display_name;
 $('menuName').textContent = user.display_name;
@@ -944,7 +1043,8 @@ function setQuality(q) {
   player.restart();                // drop the current connection, reconnect to the other stream
 }
 $('btnQ').onclick = () => setQuality(QUALITIES[(QUALITIES.indexOf(quality) + 1) % QUALITIES.length]);
-if (curPort) player.src = wsUrl();
+if (uiMode === 'remote') player.stopped = true;       // controller only: never open a video stream
+else if (curPort) player.src = wsUrl();
 syncQ();
 
 // ---- port switcher ----
@@ -986,7 +1086,9 @@ $('btnPort').onclick = e => {
 };
 $('portMenu').addEventListener('click', e => {
   const b = e.target.closest('[data-port]'); if (!b) return;
-  $('portMenu').hidden = true; setPort(+b.dataset.port);
+  $('portMenu').hidden = true;
+  if (uiMode === 'remote' && follow && +b.dataset.port !== curPort?.id) { setFollow(false); toast('Following is off: you picked a TV yourself.'); }
+  setPort(+b.dataset.port);
 });
 renderPortSel();
 if (!curPort) showNoPorts();
@@ -1004,7 +1106,7 @@ let ctl = null, ctlRetry = 0, idleKill = 120, stoppedReason = null, resumeWaiter
 const isWatching = () => { const v = player.video; return !!(v && !v.paused && v.readyState >= 2 && !player.stopped); };
 function sendStatus() {
   if (!ctl || ctl.readyState !== 1) return;
-  ctl.send(JSON.stringify({ type: 'status', visible: document.visibilityState === 'visible', playing: isWatching(),
+  ctl.send(JSON.stringify({ type: 'status', mode: uiMode, visible: document.visibilityState === 'visible', playing: isWatching(),
     path: (document.querySelector('#chipStream span')?.textContent || '').replace('Video: ', ''), quality: effQuality(),
     port: curPort ? curPort.id : null }));
 }
@@ -1017,10 +1119,17 @@ function openControl() {
     if (m.type === 'hello') { idleKill = m.idle_kill || idleKill; if (m.killed && !stoppedReason) onStopped(m.killed); }
     else if (m.type === 'kill') onStopped(m.reason);
     else if (m.type === 'resumed' && resumeWaiter) resumeWaiter();
+    else if (m.type === 'keyack') onKeyAck(m);
+    else if (m.type === 'follow') onFollow(m);
   };
   ws.onclose = () => { if (ctl === ws) ctl = null; setTimeout(openControl, Math.min(30000, 1000 * 2 ** ctlRetry++)); };
 }
 function onStopped(reason) {
+  if (uiMode === 'remote') {                 // nothing to stop on a controller
+    if (reason === 'signout') location.href = '/login';
+    else toast('An admin closed this remote session. Reload to reconnect.', true);
+    return;
+  }
   stoppedReason = reason;
   player.stop();
   clearInterval(connTID); connTID = 0;
@@ -1280,7 +1389,24 @@ if (canControl) {
 }
 wake();
 
-const sendKey = (key, direction = 'SHORT') => curPort && api(portUrl('/key'), { key, direction }).catch(e => toast(e.message, true));
+// Keys go over the already-open session socket (much less lag than one HTTP request each, esp. on mobile
+// data); plain HTTP if the socket is down. Errors come back as 'keyack'.
+let keySeq = 0, lastKeyErr = 0;
+const keyWait = new Map();
+function sendKey(key, direction = 'SHORT') {
+  if (!curPort) return;
+  if (ctl && ctl.readyState === 1) {
+    const seq = ++keySeq;
+    ctl.send(JSON.stringify({ type: 'key', seq, port: curPort.id, key, direction }));
+    keyWait.set(seq, setTimeout(() => keyWait.delete(seq), 10000));
+    return;
+  }
+  api(portUrl('/key'), { key, direction }).catch(e => toast(e.message, true));
+}
+function onKeyAck(m) {
+  clearTimeout(keyWait.get(m.seq)); keyWait.delete(m.seq);
+  if (!m.ok && Date.now() - lastKeyErr > 3000) { lastKeyErr = Date.now(); toast(m.error || 'The TV did not respond.', true); }
+}
 const LONG_MS = 450;
 document.querySelectorAll('[data-key]').forEach(btn => {
   let tid = 0, long = false; const key = btn.dataset.key;
@@ -1315,6 +1441,7 @@ document.addEventListener('keydown', e => {
   }
   if (!canControl) return;
   if (e.key === 'r' || e.key === 'R') { wake(); return; }
+  if ((e.key === 'g' || e.key === 'G') && uiMode === 'watch') { setGest(!gestOn, true); return; }
   const k = KEYMAP[e.key];
   if (k) { e.preventDefault(); sendKey(k); }
 });
@@ -1339,11 +1466,144 @@ function renderApps() {
 // grey out buttons the device type doesn't have (e.g. Mute on Apple TV)
 function applyUnsupported(list) {
   const na = new Set(list || []);
-  document.querySelectorAll('#remote [data-key]').forEach(b => {
+  document.querySelectorAll('[data-key]').forEach(b => {
     b.classList.toggle('na', na.has(b.dataset.key)); b.toggleAttribute('aria-disabled', na.has(b.dataset.key));
   });
 }
 renderApps(); applyUnsupported(curPort?.unsupported);
+
+// ================= swipe gestures =================
+const buzz = ms => { try { navigator.vibrate?.(ms); } catch {} };
+const FX = { UP: '▲', DOWN: '▼', LEFT: '◀', RIGHT: '▶', OK: '●', BACK: '↩' };
+function flash(el, what) {
+  el.textContent = FX[what] || what;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 140);
+}
+// One finger: swipe = one arrow per ~44 px of travel; swipe and hold = keeps repeating that arrow;
+// hold without moving = long press; quick touch = tap.
+function attachGestures(el, o) {
+  const FIRST = 28, STEP = 44, LONG = 550, REPEAT_DELAY = 380, REPEAT_MS = 170;
+  let st = null;
+  const dirOf = (dx, dy) => Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'RIGHT' : 'LEFT') : (dy > 0 ? 'DOWN' : 'UP');
+  const stopRepeat = () => { if (st) { clearTimeout(st.repT); clearInterval(st.repI); } };
+  el.addEventListener('pointerdown', e => {
+    if (e.button > 0 || st) return;
+    e.preventDefault();
+    try { el.setPointerCapture(e.pointerId); } catch {}
+    st = { id: e.pointerId, ax: e.clientX, ay: e.clientY, moved: false, steps: 0, long: false, dir: null, type: e.pointerType };
+    st.longT = setTimeout(() => { if (st && !st.moved) { st.long = true; buzz(30); o.onLong?.(); } }, LONG);
+  });
+  el.addEventListener('pointermove', e => {
+    if (!st || e.pointerId !== st.id || st.long) return;
+    const dx = e.clientX - st.ax, dy = e.clientY - st.ay;
+    if (Math.hypot(dx, dy) < (st.steps ? STEP : FIRST)) return;
+    clearTimeout(st.longT); st.moved = true;
+    st.dir = dirOf(dx, dy); st.ax = e.clientX; st.ay = e.clientY; st.steps++;
+    buzz(8); o.onDir(st.dir);
+    stopRepeat();
+    st.repT = setTimeout(() => { if (st) st.repI = setInterval(() => st && o.onDir(st.dir), REPEAT_MS); }, REPEAT_DELAY);
+  });
+  const end = e => {
+    if (!st || e.pointerId !== st.id) return;
+    clearTimeout(st.longT); stopRepeat();
+    const s = st; st = null;
+    if (e.type === 'pointercancel' || s.moved || s.long) return;
+    o.onTap?.(s.type);
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+}
+
+// ---- on the player (watch mode): off by default, toggled with 👆 or G ----
+const glayer = $('glayer');
+let gestOn = false, tapTID = 0;
+function setGest(v, announce) {
+  gestOn = v; store.set('tanchtv.gest', v ? '1' : '0');
+  glayer.hidden = !v; $('btnGest').classList.toggle('on', v);
+  if (announce) toast(v ? 'Gestures on: swipe on the picture to move, double-tap for OK, hold for Back.' : 'Gestures off.');
+}
+if (canControl && uiMode === 'watch') {
+  $('btnGest').hidden = false;
+  setGest(store.get('tanchtv.gest') === '1');
+  $('btnGest').onclick = () => setGest(!gestOn, true);
+  glayer.addEventListener('pointerdown', e => e.stopPropagation());   // the picture's own tap-to-toggle stays out of it
+  attachGestures(glayer, {
+    onDir: d => { sendKey('DPAD_' + d); flash($('gfx'), d); wake(); },
+    onLong: () => { sendKey('BACK'); flash($('gfx'), 'BACK'); },
+    onTap: type => {
+      if (tapTID) { clearTimeout(tapTID); tapTID = 0; sendKey('DPAD_CENTER'); flash($('gfx'), 'OK'); return; }
+      tapTID = setTimeout(() => {            // single tap: show/hide the controls, like before
+        tapTID = 0;
+        if (type === 'mouse' || stage.classList.contains('idle')) wake(); else hideIdle(true);
+      }, 260);
+    },
+  });
+}
+
+// ================= remote mode =================
+let follow = store.get('tanchtv.follow') !== '0', followInfo = { port: null, device: '' };
+function setFollow(v) { follow = v; store.set('tanchtv.follow', v ? '1' : '0'); renderFollow(); }
+function renderFollow() {
+  if (uiMode !== 'remote') return;
+  if (!follow) chip('chipFollow', '', `Controlling ${curPort ? curPort.name : 'nothing'} (fixed)`);
+  else if (followInfo.port) chip('chipFollow', 'ok', `Following your ${followInfo.device || 'other screen'}`);
+  else chip('chipFollow', 'warn', `Nothing playing elsewhere · ${curPort ? curPort.name : 'no TV'}`);
+  $('rmFollow').textContent = follow ? 'Stop following' : 'Follow my screen';
+}
+function onFollow(m) {
+  followInfo = { port: m.port, device: m.device || '' };
+  if (uiMode === 'remote' && follow && m.port && m.port !== curPort?.id && ports.some(p => p.id === m.port)) {
+    setPort(m.port); buzz(20); toast(`Now controlling ${curPort.name}`);
+  }
+  renderFollow();
+}
+let previewTID = 0;
+function setPreview(on) {
+  store.set('tanchtv.rmpreview', on ? '1' : '0');
+  clearInterval(previewTID); previewTID = 0;
+  const img = $('rmPreview'); img.hidden = !on; $('rmPreviewBtn').classList.toggle('accent', on);
+  if (!on) { img.removeAttribute('src'); return; }
+  const tick = () => { if (curPort && document.visibilityState === 'visible') img.src = `/api/frame.jpeg?port=${curPort.id}&t=${Date.now()}`; };
+  tick(); previewTID = setInterval(tick, 1200);
+}
+let wakeLock = null;
+async function keepAwake() {
+  try { if (document.visibilityState === 'visible' && 'wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch {}
+}
+function switchMode(m) { store.set(MODE_KEY, m); location.href = m === 'remote' ? '/remote' : '/'; }
+
+if (canControl) {
+  $('mMode').hidden = false;
+  $('mMode').textContent = uiMode === 'remote' ? '📺 Watch mode' : '🎮 Remote mode';
+  $('mMode').onclick = () => switchMode(uiMode === 'remote' ? 'watch' : 'remote');
+}
+if (uiMode === 'remote') {
+  document.body.classList.add('remote-mode');
+  document.title = 'TanchTV remote';
+  wrap.hidden = true; $('kbdHint').hidden = true; $('chipStream').hidden = true;
+  $('rmode').hidden = false;
+  $('rmMore').appendChild($('more'));           // apps + keyboard, same controls as the player's remote
+  attachGestures($('pad'), {
+    onDir: d => { sendKey('DPAD_' + d); flash($('padfx'), d); },
+    onLong: () => { sendKey('BACK'); flash($('padfx'), 'BACK'); },
+    onTap: () => { sendKey('DPAD_CENTER'); flash($('padfx'), 'OK'); buzz(12); },
+  });
+  $('rmFollow').onclick = () => { setFollow(!follow); if (follow) onFollow({ port: followInfo.port, device: followInfo.device }); };
+  $('rmPreviewBtn').onclick = () => setPreview(!previewTID);
+  $('rmWatch').onclick = () => switchMode('watch');
+  setPreview(store.get('tanchtv.rmpreview') === '1');
+  document.addEventListener('visibilitychange', keepAwake); keepAwake();
+  renderFollow();
+} else if (canControl && isPhone() && store.get(MODE_KEY) === null) {
+  // First visit from a phone: watch here, or use the phone as a remote?
+  $('msWatch').onclick = () => { store.set(MODE_KEY, 'watch'); $('modeSheet').close(); };
+  $('msRemote').onclick = () => switchMode('remote');
+  $('modeSheet').addEventListener('cancel', () => store.set(MODE_KEY, 'watch'));
+  $('modeSheet').showModal();
+}
+
 
 // ================= status =================
 const REMOTE_TXT = { connected: ['ok', 'Remote: connected'], starting: ['warn', 'Remote: connecting…'],

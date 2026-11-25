@@ -59,6 +59,12 @@ Prefer to do it yourself? See [Manual installation](#manual-installation).
 - **Apple TV**: pyatv (AirPlay + Companion).
 - D-pad, back, home, menu, media keys, volume, power / sleep / wake, text input, app shortcuts
   (YouTube, Netflix, Plex, Disney+, Prime Video, Twitch). Buttons a box can't do are greyed out.
+- **Swipe gestures** on the picture (turn on with 👆 or `G`): swipe = arrows, swipe and hold =
+  keep moving, double-tap = OK, hold = Back.
+- **Phone remote mode** (`/remote`, or pick "Use as a remote" the first time a phone opens
+  TanchTV): a touchpad plus big buttons, no video (saves data), screen kept on, optional small
+  live picture. It **follows the TV you're watching on another device** (switch ports on the PC
+  and the phone switches too), or you pick one yourself.
 
 **Accounts and admin**
 - Own sign-in page: **Continue with Google**, **Sign in with a passkey**, and a small

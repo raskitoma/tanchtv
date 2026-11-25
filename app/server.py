@@ -217,6 +217,7 @@ async def favicon(_):
 
 
 @routes.get("/")
+@routes.get("/remote")
 async def index(_):
     return web.FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})
 
@@ -824,14 +825,21 @@ async def _drv_call(request, fn):
     return web.json_response({"ok": True, "via": via})
 
 
-@routes.post("/api/ports/{pid}/key")
-@control_only
-async def port_key(request):
-    d = await body(request)
+def parse_key(d) -> tuple[str, str] | None:
     k = str(d.get("key", "")).upper().removeprefix("KEYCODE_")
     direction = str(d.get("direction", "SHORT")).upper()
     if k not in KEYS or direction not in ("SHORT", "START_LONG", "END_LONG"):
+        return None
+    return k, direction
+
+
+@routes.post("/api/ports/{pid}/key")
+@control_only
+async def port_key(request):
+    parsed = parse_key(await body(request))
+    if not parsed:
         return jerr("bad key")
+    k, direction = parsed
     return await _drv_call(request, lambda drv: drv.key(k, direction))
 
 
@@ -1082,7 +1090,8 @@ class Viewers:
                  "ip": client_ip(request), "device": device_name(ua), "started": now, "last_seen": now,
                  "visible": True, "playing": False, "path": "", "quality": "", "idle_since": now,
                  "killed": None, "killed_at": None, "control": None, "proxies": set(), "task": None,
-                 "bytes": 0, "last_progress": now, "port_id": None}
+                 "bytes": 0, "last_progress": now, "port_id": None,
+                 "mode": "watch", "follow_sent": "", "keylock": asyncio.Lock()}
             self.s[sid] = v
         elif user and v["user_id"] not in (None, user["id"]):
             return None   # someone else's sid
@@ -1131,6 +1140,10 @@ class Viewers:
                             self.s.pop(sid, None)
                         continue
                     stale = now - v["last_seen"] > IDLE_KILL_S        # page stopped reporting (closed/asleep)
+                    if v.get("mode") == "remote":                    # controller only, no video to stop
+                        if stale and v["control"] is None:
+                            self.s.pop(sid, None)
+                        continue
                     idle = v["idle_since"] is not None and now - v["idle_since"] > IDLE_KILL_S
                     if stale or idle:
                         await self.kill(sid, "idle")
@@ -1249,6 +1262,8 @@ def viewer_state(v, now):
         return ("watching", 0) if now - v["last_progress"] < 10 else ("paused", int(now - v["last_progress"]))
     if now - v["last_seen"] > 75:          # background tabs may report only once a minute
         return "not reporting", int(now - v["last_seen"])
+    if v.get("mode") == "remote":
+        return "remote control", 0
     if v["playing"]:
         return ("watching" if v["visible"] else "playing in background"), 0
     return "paused", int(now - (v["idle_since"] or now))
@@ -1279,15 +1294,23 @@ async def session_ws(request):
                 continue
             now = time.time()
             v["last_seen"] = now
+            if d.get("type") == "key":
+                asyncio.create_task(_socket_key(request.app, v, ws, d))
+                continue
             if d.get("type") == "status":
+                mode = "remote" if d.get("mode") == "remote" else "watch"
+                changed = mode != v.get("mode") or d.get("port") != v.get("port_id") or bool(d.get("playing")) != v["playing"]
+                v["mode"] = mode
                 v["visible"], v["playing"] = bool(d.get("visible")), bool(d.get("playing"))
                 v["path"], v["quality"] = str(d.get("path", ""))[:40], str(d.get("quality", ""))[:4]
                 if isinstance(d.get("port"), int):
                     v["port_id"] = d["port"]
-                if v["playing"]:                 # hidden/minimized/other tab but playing = still watched
+                if v["playing"] or mode == "remote":    # hidden/minimized/other tab but playing = still watched
                     v["idle_since"] = None
                 elif v["idle_since"] is None:
                     v["idle_since"] = now
+                if changed or mode == "remote":
+                    await push_follow(v["user_id"])
             elif d.get("type") == "resume":
                 v["killed"] = v["killed_at"] = None
                 v["idle_since"] = now          # gets cleared by the next "playing" status
@@ -1296,7 +1319,73 @@ async def session_ws(request):
         if v["control"] is ws:
             v["control"] = None
         viewers.drop_if_unused(sid)
+        await push_follow(v["user_id"])
     return ws
+
+
+async def _socket_key(app, v, ws, d):
+    """A remote key sent over the session socket (lower latency than one HTTP request per press).
+    Keys from one page run in order; each gets an ack so the page can report errors."""
+    seq = d.get("seq")
+    err = None
+    try:
+        u = app["db"].user(v["user_id"]) if v["user_id"] else None
+        parsed = parse_key(d)
+        pid = d.get("port")
+        drv = app["remotes"].get(pid) if isinstance(pid, int) else None
+        if not u or u.get("disabled"):
+            err = "Signed out."
+        elif not can_control(u):
+            err = "You don't have permission to use the remote. Ask an admin."
+        elif not parsed:
+            err = "bad key"
+        elif not drv:
+            err = "This port has no remote."
+        else:
+            async with v["keylock"]:
+                await drv.key(*parsed)
+    except RemoteError as e:
+        err = str(e)
+    except Exception as e:  # noqa: BLE001
+        log.warning("socket key failed: %s", e)
+        err = f"{type(e).__name__}: {e}"
+    if seq is not None and not ws.closed:
+        try:
+            await ws.send_json({"type": "keyack", "seq": seq, "ok": err is None, **({"error": err} if err else {})})
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def follow_target(user_id):
+    """The port this user is watching on another device right now (most recent playing session)."""
+    now = time.time()
+    best = None
+    for v in viewers.s.values():
+        if (v["user_id"] != user_id or v["kind"] != "web" or v.get("mode") == "remote" or v["killed"]
+                or not v["playing"] or v["port_id"] is None or now - v["last_seen"] > 75):
+            continue
+        if best is None or v["started"] > best["started"]:
+            best = v
+    return best
+
+
+async def push_follow(user_id):
+    """Tell this user's remote-mode phones which port to control (or that nothing is playing)."""
+    if user_id is None:
+        return
+    t = follow_target(user_id)
+    msg = {"type": "follow", "port": t["port_id"] if t else None, "device": t["device"] if t else ""}
+    key = f'{msg["port"]}|{msg["device"]}'
+    for v in list(viewers.s.values()):
+        if v["user_id"] != user_id or v.get("mode") != "remote" or v["control"] is None or v["control"].closed:
+            continue
+        if v.get("follow_sent") == key:
+            continue
+        v["follow_sent"] = key
+        try:
+            await v["control"].send_json(msg)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 @routes.get("/api/admin/streams")

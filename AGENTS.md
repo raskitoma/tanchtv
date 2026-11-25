@@ -44,9 +44,17 @@ present) and `data/ports/<id>/` (pairing certificates, ADB keys).
   `/video-rtc.js`) opens `/api/ws?sid=&port=&q=sd`; the app proxies to go2rtc's WS for stream
   `p<id>` or `p<id>_sd`. WebRTC is negotiated over that WS and then flows directly from go2rtc
   (:8555) to the browser; if it can't connect, MSE data flows through the WS instead.
-- Control channel: `/api/session?sid=` WebSocket; the page reports `{visible, playing, path,
+- Control channel: `/api/session?sid=` WebSocket; the page reports `{mode, visible, playing, path,
   quality, port}` every 5 s; the server can send `kill`. The reaper stops sessions paused or
-  silent for `IDLE_KILL_SECONDS` (hidden-but-playing is fine).
+  silent for `IDLE_KILL_SECONDS` (hidden-but-playing is fine; `mode: "remote"` pages are never
+  idle-killed). Remote keys also travel on this socket (`{type: "key", seq, port, key, direction}`
+  → `{type: "keyack", seq, ok, error?}`, run in order per page) instead of one HTTP POST each.
+- Remote mode (`uiMode === 'remote'`, `/remote`): the page never opens a video stream
+  (`player.stopped = true`). `push_follow()` sends `{type: "follow", port, device}` to a user's
+  remote-mode pages whenever the port they're playing on another device changes.
+- Gestures: `attachGestures(el, {onDir, onTap, onLong})` in `index.html` (pointer events; first
+  arrow after 28 px, then one per 44 px; repeat while held; long press 550 ms). Used by the player
+  layer `#glayer` (off by default) and the remote-mode touchpad `#pad`.
 - Ports: `POST /api/admin/ports...` → DB → `Remotes.add()` (driver) and `sync_go2rtc()`, which
   POSTs the new YAML to go2rtc `/api/config` and restarts it via `/api/restart`.
 - Status: `GET /api/ports/{id}/status` merges the driver status and the no-signal state.

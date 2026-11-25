@@ -53,7 +53,7 @@ present) and `data/ports/<id>/` (pairing certificates, ADB keys).
   (`player.stopped = true`). `push_follow()` sends `{type: "follow", port, device}` to a user's
   remote-mode pages whenever the port they're playing on another device changes.
 - Gestures: `attachGestures(el, {onDir, onTap, onLong})` in `index.html` (pointer events; first
-  arrow after 28 px, then one per 44 px; repeat while held; long press 550 ms). Used by the player
+  arrow after 40 px, then one per 100 px; repeat every 280 ms after holding 650 ms; long press 550 ms). Used by the player
   layer `#glayer` (off by default) and the remote-mode touchpad `#pad`.
 - Ports: `POST /api/admin/ports...` → DB → `Remotes.add()` (driver) and `sync_go2rtc()`, which
   POSTs the new YAML to go2rtc `/api/config` and restarts it via `/api/restart`.

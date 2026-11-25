@@ -1480,10 +1480,10 @@ function flash(el, what) {
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 140);
 }
-// One finger: swipe = one arrow per ~44 px of travel; swipe and hold = keeps repeating that arrow;
+// One finger: swipe = one arrow per ~100 px of travel; swipe and hold = keeps repeating that arrow;
 // hold without moving = long press; quick touch = tap.
 function attachGestures(el, o) {
-  const FIRST = 28, STEP = 44, LONG = 550, REPEAT_DELAY = 380, REPEAT_MS = 170;
+  const FIRST = 40, STEP = 100, LONG = 550, REPEAT_DELAY = 650, REPEAT_MS = 280;
   let st = null;
   const dirOf = (dx, dy) => Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'RIGHT' : 'LEFT') : (dy > 0 ? 'DOWN' : 'UP');
   const stopRepeat = () => { if (st) { clearTimeout(st.repT); clearInterval(st.repI); } };

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- full-bleed square (phones round the corners themselves); TV kept inside the 80 % safe zone -->
+  <rect width="64" height="64" fill="#76b900"/>
+  <g transform="translate(6.4 6.4) scale(.8)">
+    <path d="M32 19 24.5 10.5M32 19l7.5-8.5" stroke="#0b0d10" stroke-width="3.2" stroke-linecap="round"/>
+    <circle cx="24" cy="10" r="2.6" fill="#0b0d10"/>
+    <circle cx="40" cy="10" r="2.6" fill="#0b0d10"/>
+    <rect x="9.5" y="18.5" width="45" height="31" rx="6.5" fill="#0b0d10"/>
+    <rect x="14" y="23" width="36" height="22" rx="3" fill="#1d232c"/>
+    <path d="M28.5 28.2v11.6c0 .9 1 1.4 1.7.9l8.6-5.8c.7-.5.7-1.5 0-2l-8.6-5.6c-.7-.5-1.7 0-1.7.9z" fill="#76b900"/>
+    <rect x="24" y="51.5" width="16" height="3.6" rx="1.8" fill="#0b0d10"/>
+  </g>
+</svg>

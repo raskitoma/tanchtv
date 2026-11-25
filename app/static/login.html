@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<title>TanchTV · Sign in</title>
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<link rel="icon" href="/static/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="TanchTV">
+<link rel="stylesheet" href="/static/app.css">
+<style>
+  body { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px;
+    background: radial-gradient(1200px 600px at 50% -10%, rgba(118,185,0,.12), transparent 60%), var(--bg); }
+  .box { width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 18px; padding: 28px 24px 20px; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+  .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .logo .mark { width: 48px; height: 48px; display: block; filter: drop-shadow(0 6px 18px rgba(118,185,0,.25)); }
+  .brand { font-size: 24px; }
+  .sub { color: var(--muted); margin: 0 0 22px; }
+  .msg { margin-bottom: 14px; }
+  .stack { display: grid; gap: 10px; }
+  .pk-btn svg, .google-btn svg { width: 18px; height: 18px; }
+  .note { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 16px; font-size: 13px; }
+  .foot { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); text-align: center; font-size: 13px; }
+  .foot a { color: var(--muted); text-decoration: none; }
+  .foot a:hover { color: var(--text); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">
+    <img class="mark" src="/static/logo.svg" alt="">
+    <h1 class="brand">Tanch<b>TV</b></h1>
+  </div>
+  <p class="sub" id="sub">Sign in to watch and control the TV.</p>
+
+  <div class="error msg" id="err" hidden></div>
+  <div class="note" id="note" hidden></div>
+
+  <!-- main: Google + passkey -->
+  <div class="stack" id="mainBox">
+    <a class="btn google-btn block" id="googleBtn" href="/auth/google/start" hidden>
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+      <span id="googleLabel">Continue with Google</span>
+    </a>
+    <button class="btn block pk-btn" id="pkBtn" type="button" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a6 6 0 0 1 9.5-4.9"/><circle cx="17.5" cy="14.5" r="2.5"/><path d="M17.5 17v5M17.5 19.5h2"/></svg>
+      Sign in with a passkey
+    </button>
+  </div>
+
+  <!-- admin: username + password -->
+  <form id="adminForm" autocomplete="on" hidden>
+    <div class="field"><label for="u">Username</label>
+      <input class="input" id="u" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+    <div class="field"><label for="p">Password</label>
+      <input class="input" id="p" name="password" type="password" autocomplete="current-password" required></div>
+    <button class="btn accent block" type="submit" id="loginBtn">Sign in</button>
+  </form>
+
+  <div class="foot" id="foot"><a href="#" id="switchLink">Admin login</a></div>
+</div>
+
+<script type="module">
+import { passkeysSupported, signInWithPasskey } from '/static/passkey.js';
+const $ = id => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+const rawNext = qs.get('next') || '/';
+const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/';
+const inviteMatch = location.pathname.match(/^\/invite\/([^/]+)$/);
+const inviteToken = inviteMatch ? decodeURIComponent(inviteMatch[1]) : '';
+const adminMode = qs.has('admin');
+
+function showErr(msg) { $('err').textContent = msg; $('err').hidden = !msg; }
+function note(html) { $('note').innerHTML = html; $('note').hidden = !html; }
+if (qs.get('error')) showErr(qs.get('error'));
+
+function link(params) { const q = new URLSearchParams(params); if (next !== '/') q.set('next', next); const s = q.toString(); return '/login' + (s ? '?' + s : ''); }
+
+// ---- admin username/password ----
+$('adminForm').addEventListener('submit', async e => {
+  e.preventDefault(); showErr(''); $('loginBtn').disabled = true;
+  try {
+    const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: $('u').value.trim().toLowerCase(), password: $('p').value }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'Sign-in failed.');
+    location.replace(next);
+  } catch (err) { showErr(err.message); $('p').value = ''; $('p').focus(); }
+  finally { $('loginBtn').disabled = false; }
+});
+
+// ---- passkey ----
+$('pkBtn').onclick = async () => {
+  showErr(''); $('pkBtn').disabled = true;
+  try { await signInWithPasskey(); location.replace(next); }
+  catch (err) { showErr(err.message); }
+  finally { $('pkBtn').disabled = false; }
+};
+
+(async () => {
+  if (inviteToken) {
+    // Invite: join with Google only
+    $('sub').textContent = "You've been invited to TanchTV.";
+    $('foot').innerHTML = '<a href="/login">Already have an account? Sign in</a>';
+    try {
+      const r = await fetch('/api/invite/info?token=' + encodeURIComponent(inviteToken));
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      const role = j.role === 'admin' ? 'an <b>admin</b>' : 'a <b>viewer</b>';
+      const remote = j.role === 'admin' ? '' : (j.can_control ? ', with use of the remote' : ' (watch only)');
+      note(`You'll join as ${role}${remote}. Sign in with your Google account to accept.` +
+        (j.email ? `<br><span class="help">Use the Google account ${j.email.replace(/[<>&]/g, '')}</span>` : ''));
+      $('googleBtn').hidden = false; $('googleLabel').textContent = 'Join with Google';
+      $('googleBtn').href = '/auth/google/start?invite=' + encodeURIComponent(inviteToken);
+    } catch (err) { showErr(err.message || 'This invite link is invalid.'); }
+    return;
+  }
+
+  if (adminMode) {
+    $('mainBox').hidden = true; $('adminForm').hidden = false;
+    $('sub').textContent = 'Administrator sign-in.';
+    $('switchLink').textContent = '← Back to sign-in'; $('switchLink').href = link({});
+    $('u').focus();
+    return;
+  }
+
+  $('switchLink').href = link({ admin: '' }).replace('admin=', 'admin');
+  let google = false;
+  try { google = (await (await fetch('/api/auth/config')).json()).google; } catch {}
+  if (google) { $('googleBtn').hidden = false; $('googleBtn').href = '/auth/google/start?next=' + encodeURIComponent(next); }
+  if (passkeysSupported()) $('pkBtn').hidden = false;
+  if (!google && $('pkBtn').hidden) note('Google sign-in isn’t set up yet. Admins can use <b>Admin login</b> below.');
+  else if (!google) note('Google sign-in isn’t set up yet.');
+})();
+</script>
+</body>
+</html>

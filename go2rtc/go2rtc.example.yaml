@@ -1,0 +1,18 @@
+# Starting config for go2rtc. Copy it to go2rtc/go2rtc.yaml before the first start.
+# TanchTV rewrites go2rtc.yaml (through go2rtc's API) every time you add, change or remove a port
+# in Settings -> Ports, so you never edit streams here.
+api:
+  listen: "127.0.0.1:1984"      # loopback only: the TanchTV app is the only client (it does sign-in)
+
+rtsp:
+  listen: "127.0.0.1:18554"     # capture.sh publishes here; loopback only
+
+webrtc:
+  listen: ":8555"               # open 8555/tcp and 8555/udp to your LAN (and VPN)
+  filters:
+    networks: [udp4, tcp4]
+
+log:
+  level: info
+
+streams: {}

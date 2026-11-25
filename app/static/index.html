@@ -1,0 +1,1802 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<title>TanchTV</title>
+<link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+<link rel="icon" href="/static/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="TanchTV">
+<link rel="stylesheet" href="/static/app.css">
+<style>
+  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); min-height: 56px; }
+  header .brand { font-size: 18px; display: inline-flex; align-items: center; gap: 8px; }
+  header .brand img { width: 28px; height: 28px; display: block; }
+  /* port switcher */
+  .portsel { position: relative; }
+  .portsel #btnPort { gap: 8px; max-width: 46vw; }
+  .portsel #portName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .portsel .caret { color: var(--muted); font-size: 11px; }
+  .portsel .menu { left: 0; right: auto; min-width: 240px; }
+  .portsel .menu button { display: flex; align-items: center; gap: 8px; }
+  .portsel .menu button.on { background: var(--panel2); }
+  .portsel .menu button.on::after { content: "✓"; margin-left: auto; color: var(--accent); }
+  .ptag { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 6px;
+    border-radius: 6px; background: var(--panel2); border: 1px solid var(--line2); color: var(--muted); white-space: nowrap; }
+  .ptag.androidtv { color: #a6e3a1; border-color: rgba(70,167,88,.45); }
+  .ptag.firetv { color: #f5c46b; border-color: rgba(224,163,38,.45); }
+  .ptag.appletv { color: #cfd6e4; border-color: rgba(207,214,228,.35); }
+  .remote .btn.na { opacity: .3; pointer-events: none; }
+  /* port cards (settings) */
+  .portcard { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .portcard .ph { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .portcard .ph b { font-size: 15px; }
+  .portcard .meta { color: var(--muted); font-size: 12px; margin: 4px 0 10px; }
+  .portcard .row2 { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .portcard .preview { display: block; width: 100%; max-width: 360px; aspect-ratio: 16/9; object-fit: contain; background: #000;
+    border-radius: 8px; border: 1px solid var(--line); margin-top: 8px; }
+  #pairDlg { width: min(760px, 96vw); }
+  #pairDlg .dlg-head h2 { display: flex; align-items: center; gap: 8px; }
+  .pairimg { display: block; width: 100%; aspect-ratio: 16/9; object-fit: contain; background: #000;
+    border-radius: 10px; border: 1px solid var(--line); }
+  .pairhelp { margin: 12px 0 4px; }
+  .pairstatus { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); }
+  .pairstatus.done { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .pairstatus.error { border-color: #ff5a5f; color: #ff8b8e; }
+  .pairstatus .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--muted); border-top-color: var(--accent);
+    border-radius: 50%; animation: pairspin .8s linear infinite; vertical-align: -1px; margin-right: 6px; }
+  @keyframes pairspin { to { transform: rotate(360deg); } }
+  #pairForm { margin-top: 10px; }
+  #pairCode { max-width: 180px; font-size: 22px; letter-spacing: 6px; text-align: center; text-transform: uppercase; font-family: ui-monospace, monospace; }
+  .pairfoot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  @media (max-width: 760px) { .portsel #btnPort { max-width: 40vw; } .portsel .ptag { display: none; } }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--line);
+    border-radius: 999px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  .chip.ok i { background: var(--ok); } .chip.warn i { background: var(--warn); } .chip.bad i { background: var(--bad); }
+  .chip.ok, .chip.warn, .chip.bad { color: var(--text); }
+  .spacer { flex: 1; }
+  .usermenu { position: relative; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--panel2); border: 1px solid var(--line2);
+    display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+  .menu { position: absolute; right: 0; top: calc(100% + 6px); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; min-width: 210px; padding: 6px; z-index: 50; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+  .menu .who { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+  .menu .who small { color: var(--muted); display: block; }
+  .menu button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+  .menu button:hover { background: var(--panel2); }
+  @media (max-width: 640px) { .chips .chip:not(#chipStream) { display: none; } .who-name { display: none; } }
+
+  main { padding: 16px; max-width: 1800px; margin: 0 auto; }
+  .banner { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex-wrap: wrap;
+    background: rgba(224,163,38,.1); border: 1px solid rgba(224,163,38,.4); padding: 10px 14px; border-radius: 12px; margin-bottom: 12px; }
+
+  .stage { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line);
+    aspect-ratio: 16 / 9; max-height: calc(100dvh - 120px); margin: 0 auto; }
+  .stage tv-player, .stage video { display: block; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .stage:fullscreen { border-radius: 0; border: 0; max-height: none; }
+  .stage.idle { cursor: none; }
+  .overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 2; }
+  /* No-signal test card: colour bars, owner photo, brand. Sized from the stage width (cqw). */
+  .slate { position: absolute; inset: 0; z-index: 1; container-type: size; display: grid; place-items: center; pointer-events: none;
+    background: linear-gradient(90deg, #fff 0 12.5%, #ff0 0 25%, #0ff 0 37.5%, #0f0 0 50%, #f0f 0 62.5%, #f00 0 75%, #00f 0 87.5%, #090909 0); }
+  .slate .scard { display: flex; flex-direction: column; align-items: center; gap: min(2.2cqw, 4cqh); }
+  .slate .photo { width: min(24cqw, 46cqh); aspect-ratio: 1; border-radius: 50%; object-fit: cover; display: block;
+    border: min(.8cqw, 1.4cqh) solid #fff; box-shadow: 0 0 0 min(.35cqw, .6cqh) #0b0d10, 0 1.5cqw 5cqw rgba(0,0,0,.55); background: #222; }
+  .slate .sbrand { display: flex; align-items: center; gap: min(1.2cqw, 2.1cqh); background: rgba(11,13,16,.88); color: #e7eaf0;
+    padding: min(1cqw, 1.8cqh) min(2.6cqw, 4.6cqh); border-radius: 999px; font-weight: 700; font-size: min(4.6cqw, 8.2cqh);
+    letter-spacing: .01em; line-height: 1; box-shadow: 0 1cqw 3cqw rgba(0,0,0,.45); }
+  .slate .sbrand img { height: 1.15em; width: auto; display: block; }
+  .slate .sbrand b { color: var(--accent); font-weight: 800; }
+  .slate .ssub { background: rgba(11,13,16,.75); color: #cfd4dc; font-size: min(1.6cqw, 2.9cqh); padding: .35em 1em; border-radius: 999px;
+    letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
+  @container (max-height: 300px) { .slate .ssub { display: none; } .slate .scard { transform: translateY(-7cqh); } }
+  .overlay .msg { background: rgba(0,0,0,.7); border: 1px solid var(--line); padding: 12px 18px; border-radius: 12px; text-align: center; max-width: 80%;
+    display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+  .overlay .spinner { width: 18px; height: 18px; flex: none; margin-right: 10px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.2); border-top-color: var(--accent); animation: tvspin .8s linear infinite; }
+  .overlay .dots i { font-style: normal; display: inline-block; animation: tvdot 1.2s infinite; opacity: .2; }
+  .overlay .dots i:nth-child(2) { animation-delay: .2s; } .overlay .dots i:nth-child(3) { animation-delay: .4s; }
+  .overlay #stageSecs { color: var(--muted); margin-left: 10px; font-variant-numeric: tabular-nums; }
+  .overlay #stageSecs:empty { display: none; }
+  .overlay .msg.stopped .spinner, .overlay .msg.stopped .dots, .overlay .msg.stopped #stageSecs { display: none; }
+  .overlay .msg.stopped { white-space: normal; }
+  .stagebar .vol, .stagebar button { touch-action: manipulation; }
+  .tapstart.resume { top: auto; bottom: 18%; transform: translateX(-50%); }
+  .tapstart { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5;
+    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 999px; padding: 14px 26px;
+    font-size: 18px; font-weight: 700; box-shadow: 0 8px 30px rgba(0,0,0,.5); cursor: pointer; }
+  @keyframes tvspin { to { transform: rotate(360deg); } }
+  @keyframes tvdot { 0%, 60%, 100% { opacity: .2; } 30% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .overlay .spinner, .overlay .dots i { animation: none; opacity: 1; } }
+  .stagebar { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 6px; transition: opacity .3s; z-index: 3; }
+  .stagebar button { background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.15); border-radius: 10px; padding: 6px 10px; cursor: pointer; }
+  .stagebar button:hover { background: rgba(0,0,0,.85); }
+  .stagebar button { white-space: nowrap; }
+  #btnQ { font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+  @media (max-width: 400px) { .stagebar .vol input { width: 64px !important; } .stagebar button { padding: 5px 7px; } }
+  .stagebar button.on { border-color: var(--accent); color: var(--accent); }
+  .stagebar .vol { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,.6);
+    border: 1px solid rgba(255,255,255,.15); border-radius: 10px; padding: 4px 10px; }
+  .stagebar .vol input { width: 110px; accent-color: var(--accent); }
+  .stagebar .vol #volOut { font-size: 12px; min-width: 44px; text-align: right; font-variant-numeric: tabular-nums;
+    background: none; border: 0; padding: 2px 0; border-radius: 6px; }
+  .stagebar .vol #volOut:hover { color: var(--accent); background: none; }
+  .stagebar .vol #volOut.boost { color: var(--warn); }
+  @media (max-width: 480px) { .stagebar .vol input { width: 70px; } }
+  .stage.idle .stagebar { opacity: 0; pointer-events: none; }
+
+  /* remote overlay */
+  .remote { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 236px; z-index: 4;
+    background: rgba(16,18,23,.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 12px;
+    transition: opacity .25s, transform .25s; max-height: calc(100% - 24px); overflow-y: auto; scrollbar-width: thin; }
+  .remote.hide { opacity: 0; transform: translateY(-50%) translateX(24px); pointer-events: none; }
+  .remote .row { display: flex; gap: 6px; justify-content: center; margin-bottom: 6px; }
+  .remote .btn { padding: 8px 0; min-width: 0; flex: 1; border-radius: 11px; }
+  .dpad { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 52px); gap: 5px; margin: 8px 0; }
+  .dpad .btn { padding: 0; border-radius: 14px; }
+  .dpad .ok { border-radius: 50%; font-weight: 700; background: #20252e; }
+  .remote details { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .remote summary { cursor: pointer; color: var(--muted); font-size: 12px; list-style: none; text-align: center; }
+  .remote summary::-webkit-details-marker { display: none; }
+  .apps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; margin: 8px 0; }
+  .apps .btn { font-size: 12px; padding: 7px 4px; }
+  /* text field with a send arrow inside it */
+  .textrow { position: relative; display: flex; }
+  .textrow .input { flex: 1; min-width: 0; padding: 8px 44px 8px 10px; font-size: 13px; }
+  .textrow .sendbtn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    width: 32px; height: 32px; border: 0; border-radius: 8px; padding: 0; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; transition: opacity .15s; }
+  .textrow .sendbtn svg { width: 16px; height: 16px; }
+  .textrow .sendbtn:disabled { opacity: .35; cursor: default; }
+  .textrow .sendbtn:not(:disabled):hover { filter: brightness(1.1); }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; text-align: center; }
+  kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font-size: 11px; }
+
+  /* sound mixer */
+  .mixer { position: absolute; left: 12px; bottom: 58px; width: 300px; z-index: 6; padding: 12px 14px;
+    background: rgba(16,18,23,.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,.12); border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+  .mixhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 10px; }
+  .presets button { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0; font-size: 12px; cursor: pointer; }
+  .presets button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .presets button:disabled:not(.on) { opacity: .45; cursor: default; }
+  .presets button:disabled.on { opacity: 1; cursor: default; }
+  .mrow { display: grid; grid-template-columns: 1fr 110px 40px; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; }
+  .mrow small { display: block; color: var(--muted); font-size: 11px; }
+  .mrow input { width: 100%; accent-color: var(--accent); }
+  .mrow output { font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  #btnMix.on { border-color: var(--accent); color: var(--accent); }
+
+  /* fullscreen covers the whole player (video + remote + mixer). .pseudo-fs = iPhone fallback (fixed overlay) */
+  html.noscroll, html.noscroll body { overflow: hidden; }
+  .playerwrap.pseudo-fs { position: fixed; inset: 0; z-index: 1000; max-width: none !important; margin: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  .playerwrap:fullscreen, .playerwrap.pseudo-fs { max-width: none; width: 100vw; height: 100vh; height: 100dvh; background: #000;
+    display: flex; align-items: center; justify-content: center; }
+  .playerwrap:fullscreen .stage, .playerwrap.pseudo-fs .stage { width: 100%; height: 100%; max-height: none; aspect-ratio: auto; border: 0; border-radius: 0; }
+  .playerwrap:fullscreen .remote, .playerwrap.pseudo-fs .remote { position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    width: 236px; margin: 0; padding: 10px; background: rgba(16,18,23,.82); max-height: calc(100% - 24px); overflow-y: auto; }
+  .playerwrap:fullscreen .remote.hide, .playerwrap.pseudo-fs .remote.hide { opacity: 0; transform: translateY(-50%) translateX(24px); pointer-events: none; }
+  .playerwrap:fullscreen .mixer, .playerwrap.pseudo-fs .mixer { position: absolute; left: 12px; bottom: 58px; width: 300px; max-width: calc(100% - 24px);
+    margin: 0; max-height: calc(100% - 80px); overflow-y: auto; }
+  /* compact remote in fullscreen on small screens */
+  @media (max-height: 500px), (max-width: 760px) {
+    .playerwrap:fullscreen .remote, .playerwrap.pseudo-fs .remote { width: 190px; padding: 8px; }
+    .playerwrap:fullscreen .remote .btn, .playerwrap.pseudo-fs .remote .btn { min-height: 0; padding: 5px 0; font-size: 13px; }
+    .playerwrap:fullscreen .dpad, .playerwrap.pseudo-fs .dpad { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 40px); gap: 4px; margin: 4px 0; }
+    .playerwrap:fullscreen .remote details, .playerwrap.pseudo-fs .remote details { display: none; }
+  }
+
+  /* the wrapper is exactly as wide as the video, so the floating remote hugs the picture's right edge */
+  .playerwrap { position: relative; max-width: calc((100dvh - 120px) * 16 / 9); margin: 0 auto; }
+  @media (max-width: 760px) { .playerwrap { max-width: none; } }
+  @media (orientation: landscape) and (max-height: 500px) { .playerwrap { max-width: calc((100dvh - 52px) * 16 / 9); } }
+  @media (hover: none) { .hint { display: none !important; } }
+
+  /* phones (portrait) */
+  @media (max-width: 760px) {
+    header { padding: 8px 12px; min-height: 52px; gap: 8px; }
+    header .brand { font-size: 17px; }
+    main { padding: 8px 8px calc(16px + env(safe-area-inset-bottom)); }
+    .stage { max-height: none; border-radius: 12px; }
+    .stagebar { left: 8px; bottom: 8px; gap: 4px; }
+    .stagebar button { padding: 5px 9px; }
+    .stagebar .vol { padding: 3px 8px; gap: 6px; }
+    .stagebar .vol input { width: 84px; }
+    .hint { display: none !important; }
+    .remote { position: static; transform: none; width: auto; margin: 12px auto 0; max-width: 420px; padding: 14px;
+      background: var(--panel); border-color: var(--line); backdrop-filter: none; max-height: none; overflow: visible; }
+    .remote.hide { opacity: 1; transform: none; pointer-events: auto; }
+    .remote .row { gap: 8px; margin-bottom: 8px; }
+    .remote .btn { min-height: 48px; font-size: 18px; border-radius: 14px; }
+    .dpad { grid-template-columns: repeat(3, 76px); grid-template-rows: repeat(3, 68px); gap: 8px; justify-content: center; margin: 12px 0; }
+    .dpad .btn { font-size: 20px; }
+    .remote details { margin-top: 8px; padding-top: 10px; }
+    .remote summary { font-size: 13px; padding: 4px 0; }
+    .apps { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .apps .btn { min-height: 42px; font-size: 13px; }
+    .textrow .input { font-size: 16px; padding: 10px 48px 10px 12px; } /* 16px stops iOS from zooming into the field */
+    .textrow .sendbtn { width: 36px; height: 36px; }
+    #btnPin { display: none; }
+    .banner { font-size: 13px; padding: 8px 10px; }
+    .mixer { position: static; width: auto; max-width: 420px; margin: 12px auto 0; background: var(--panel); border-color: var(--line); backdrop-filter: none; }
+    .mrow { grid-template-columns: 1fr 120px 36px; }
+    .mrow input { min-height: 28px; }
+    .presets button { padding: 9px 0; font-size: 13px; }
+  }
+
+  /* phones (landscape): video as big as possible, compact floating remote */
+  @media (orientation: landscape) and (max-height: 500px) {
+    header { min-height: 40px; padding: 4px 12px; }
+    header .chips { display: none; }
+    main { padding: 4px 8px; }
+    .stage { max-height: calc(100dvh - 52px); }
+    .hint { display: none !important; }
+    .remote { width: 190px; padding: 8px; right: 8px; }
+    .remote .row { margin-bottom: 4px; gap: 4px; }
+    .remote .btn { padding: 5px 0; font-size: 13px; }
+    .dpad { grid-template-rows: repeat(3, 38px); gap: 4px; margin: 4px 0; }
+    .remote details { display: none; }
+  }
+
+  /* settings on phones: table rows become cards */
+  @media (max-width: 600px) {
+    #settings .dlg-body { padding: 14px; }
+    .tabs { padding: 6px 10px 0; }
+    #settings table, #settings tbody, #settings tr, #settings td { display: block; width: 100%; }
+    #settings thead { display: none; }
+    #settings tr { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+    #settings td { border: 0; padding: 4px 0; }
+    #settings td[data-l]::before { content: attr(data-l); color: var(--muted); font-size: 12px; display: inline-block; min-width: 76px; }
+    #settings td[data-l] { display: flex; align-items: center; gap: 10px; }
+    .input, select.input { font-size: 16px; }
+    .linkbox { flex-wrap: wrap; } .linkbox .input { flex: 1 1 200px; }
+    #account .dlg-body { padding: 14px; }
+  }
+
+  /* dialogs */
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 16px; padding: 0; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .dlg-head h2 { margin: 0; font-size: 16px; }
+  .dlg-body { padding: 18px; }
+  #settings { width: min(760px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0 0 0 auto; border-radius: 0; border-width: 0 0 0 1px; }
+  #settings[open] { display: flex; flex-direction: column; }
+  #settings .dlg-body { overflow-y: auto; flex: 1; }
+  .tabs { display: flex; gap: 4px; padding: 8px 18px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; cursor: pointer; color: var(--muted); white-space: nowrap; }
+  .tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+  .section { margin-bottom: 26px; }
+  .section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; }
+  .card { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  td small { color: var(--muted); display: block; }
+  .tablewrap { overflow-x: auto; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+  .linkbox { display: flex; gap: 8px; margin-top: 12px; }
+  .linkbox input { font-family: ui-monospace, monospace; font-size: 12px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; }
+  .badge.ok { color: #a6e3a1; border-color: rgba(70,167,88,.45); }
+  .badge.warn { color: #f5c46b; border-color: rgba(224,163,38,.45); }
+  .pkrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 6px; }
+  .pkrow small { color: var(--muted); display: block; }
+  ol.steps { padding-left: 18px; color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  ol.steps li { margin-bottom: 4px; }
+  ol.steps code { color: var(--text); }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #1c2128; border: 1px solid var(--line2);
+    padding: 9px 16px; border-radius: 10px; display: none; max-width: 90vw; z-index: 100; }
+  .toast.bad { background: #2a1416; border-color: var(--bad); color: #ffd7d8; }
+</style>
+</head>
+<body>
+<header>
+  <h1 class="brand"><img src="/static/logo.svg" alt=""><span>Tanch<b>TV</b></span></h1>
+  <div class="portsel" id="portSel" hidden>
+    <button class="btn small" id="btnPort" aria-haspopup="true" aria-expanded="false" title="Switch port (P)">
+      <span class="ptag" id="portKind"></span><span id="portName">—</span><span class="caret">▾</span>
+    </button>
+    <div class="menu" id="portMenu" hidden></div>
+  </div>
+  <div class="chips">
+    <span class="chip" id="chipStream" title="How the video reaches you"><i></i><span>Video: connecting…</span></span>
+    <span class="chip" id="chipRemote" hidden title="Remote control link to the device"><i></i><span>Remote</span></span>
+    <span class="chip" id="chipAdb" hidden title="ADB fallback"><i></i><span>ADB</span></span>
+  </div>
+  <span class="spacer"></span>
+  <div class="usermenu">
+    <button class="btn ghost small" id="btnUser" aria-haspopup="true" aria-expanded="false">
+      <span class="avatar" id="avatar">?</span><span class="who-name" id="whoName"></span>
+    </button>
+    <div class="menu" id="menu" hidden>
+      <div class="who"><b id="menuName"></b><small id="menuRole"></small></div>
+      <button id="mSettings" hidden>⚙ Settings</button>
+      <button id="mAccount">👤 My account</button>
+      <button id="mLogout">↪ Sign out</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="banner" id="pairBanner" hidden>
+    <span>⚠ The remote isn't paired yet.</span>
+    <button class="btn small accent" id="bannerPair">Pair now</button>
+  </div>
+
+  <div class="playerwrap" id="wrap">
+  <div class="stage" id="stage">
+    <tv-player id="player"></tv-player>
+    <div class="slate" id="slate" hidden aria-live="polite">
+      <div class="scard">
+        <img class="photo" src="/static/slate-photo.jpg" alt="">
+        <div class="sbrand"><img src="/static/logo.svg" alt=""><span>Tanch<b>TV</b></span></div>
+        <div class="ssub" id="slateSub">No signal</div>
+      </div>
+    </div>
+    <div class="overlay" id="stageOverlay"><div class="msg" id="stageMsg" role="status" aria-live="polite">
+      <span class="spinner" aria-hidden="true"></span><span id="stageText">Connecting to the TV</span><span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>
+      <small id="stageSecs"></small>
+    </div></div>
+    <button class="tapstart" id="tapToStart" hidden>▶ Tap to start</button>
+    <div class="stagebar">
+      <button id="btnSound" title="Sound on/off (M)">🔇</button>
+      <span class="vol" title="Volume up to 200% · [ and ] to change · tap the % or press 0 for 100%">
+        <input type="range" id="vol" min="0" max="200" step="5" value="100" aria-label="Volume" list="volMarks">
+        <datalist id="volMarks"><option value="100"></option></datalist>
+        <button type="button" id="volOut" title="Back to 100%">100%</button>
+      </span>
+      <button id="btnMix" title="Sound mixer: voices, leveling, bass, treble (X)" aria-expanded="false">🎚</button>
+      <button id="btnQ" title="Video quality: Auto / HD 1080p / SD 720p (Q)">Auto</button>
+      <button id="btnFull" title="Fullscreen (F)">⛶</button>
+      <button id="btnPin" hidden title="Keep the remote visible">📌</button>
+    </div>
+  </div>
+
+    <div class="mixer" id="mixer" hidden>
+      <div class="mixhead"><b>Sound mixer</b><button class="btn ghost small" id="mixClose" title="Close">✕</button></div>
+      <div class="presets" id="presets">
+        <button type="button" data-p="off">Off</button>
+        <button type="button" data-p="voice">Voices</button>
+        <button type="button" data-p="night">Night</button>
+        <button type="button" data-p="custom" disabled>Custom</button>
+      </div>
+      <label class="mrow"><span>Voice clarity<small>dialogue louder vs. music &amp; effects</small></span>
+        <input type="range" data-k="voice" min="0" max="100" step="5"><output></output></label>
+      <label class="mrow"><span>Leveling<small>quiet parts up, loud parts down</small></span>
+        <input type="range" data-k="level" min="0" max="100" step="5"><output></output></label>
+      <label class="mrow"><span>Bass</span>
+        <input type="range" data-k="bass" min="-12" max="12" step="1"><output></output></label>
+      <label class="mrow"><span>Treble</span>
+        <input type="range" data-k="treble" min="-12" max="12" step="1"><output></output></label>
+      <p class="help" style="margin:8px 0 0">Saved on this device. Affects this browser only, not the TV or VLC. Double-click a slider to reset it.</p>
+    </div>
+
+    <div class="remote" id="remote" hidden>
+      <div class="row">
+        <button class="btn danger" data-key="POWER" title="Power">⏻</button>
+        <button class="btn" data-key="SETTINGS" title="Device settings">⚙</button>
+        <button class="btn" data-key="SEARCH" title="Search">🔍</button>
+      </div>
+      <div class="dpad">
+        <span></span><button class="btn" data-key="DPAD_UP" title="Up">▲</button><span></span>
+        <button class="btn" data-key="DPAD_LEFT" title="Left">◀</button>
+        <button class="btn ok" data-key="DPAD_CENTER" title="OK">OK</button>
+        <button class="btn" data-key="DPAD_RIGHT" title="Right">▶</button>
+        <span></span><button class="btn" data-key="DPAD_DOWN" title="Down">▼</button><span></span>
+      </div>
+      <div class="row">
+        <button class="btn" data-key="BACK" title="Back">↩</button>
+        <button class="btn" data-key="HOME" title="Home">⌂</button>
+        <button class="btn" data-key="MENU" title="Menu">☰</button>
+      </div>
+      <div class="row">
+        <button class="btn" data-key="MEDIA_REWIND" title="Rewind">⏪</button>
+        <button class="btn" data-key="MEDIA_PLAY_PAUSE" title="Play/Pause">⏯</button>
+        <button class="btn" data-key="MEDIA_FAST_FORWARD" title="Fast forward">⏩</button>
+      </div>
+      <div class="row">
+        <button class="btn" data-key="VOLUME_DOWN" title="Volume down">🔉</button>
+        <button class="btn" data-key="VOLUME_MUTE" title="Mute">🔇</button>
+        <button class="btn" data-key="VOLUME_UP" title="Volume up">🔊</button>
+      </div>
+      <details id="more">
+        <summary>Apps &amp; keyboard ▾</summary>
+        <div class="apps" id="apps"></div>
+        <form class="textrow" id="textForm">
+          <input class="input" id="textIn" placeholder="Type on the TV…" autocomplete="off" enterkeyhint="send" aria-label="Text to type on the TV">
+          <button class="sendbtn" id="textSend" type="submit" title="Send to the TV" aria-label="Send to the TV" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </form>
+      </details>
+    </div>
+  </div>
+  <div class="hint" id="kbdHint" hidden>
+    <kbd>←↑→↓</kbd> move · <kbd>Enter</kbd> OK · <kbd>Backspace</kbd> back · <kbd>H</kbd> home · <kbd>Space</kbd> play/pause ·
+    <kbd>+</kbd>/<kbd>-</kbd> TV volume · <kbd>[</kbd>/<kbd>]</kbd> player volume · <kbd>0</kbd> 100% · <kbd>M</kbd> sound · <kbd>F</kbd> fullscreen · <kbd>R</kbd> show remote · hold a button to long-press
+  </div>
+</main>
+
+<!-- ============ Settings (admins only) ============ -->
+<dialog id="settings">
+  <div class="dlg-head"><h2>Settings</h2><button class="btn ghost small" data-close>✕</button></div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="streams" class="active">Streams</button>
+    <button data-tab="users">Users</button>
+    <button data-tab="invites">Invites</button>
+    <button data-tab="google">Google sign-in</button>
+    <button data-tab="ports">Ports</button>
+    <button data-tab="vlc">VLC links</button>
+  </nav>
+  <div class="dlg-body">
+    <!-- streams -->
+    <section data-pane="streams">
+      <div class="section">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px">
+          <h3 style="margin:0">Open streams <span class="badge" id="streamCount">0</span></h3>
+          <button class="btn small danger" id="killAll">Stop all others</button>
+        </div>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Viewer</th><th>Route</th><th>Status</th><th>Started</th><th></th></tr></thead>
+          <tbody id="streamsBody"></tbody>
+        </table></div>
+        <p class="help" id="streamsHelp"></p>
+        <p class="help" id="serverInfo"></p>
+      </div>
+    </section>
+
+    <!-- users -->
+    <section data-pane="users" hidden>
+      <div class="section">
+        <h3>People</h3>
+        <div class="tablewrap"><table>
+          <thead><tr><th>User</th><th>Role</th><th>Remote</th><th>Active</th><th></th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table></div>
+        <p class="help">Admins can always use the remote and change settings. Viewers only watch, unless you turn on <b>Remote</b> for them.
+          The built-in <b>admin</b> account can only be disabled from the server's command line.</p>
+      </div>
+    </section>
+
+    <!-- invites -->
+    <section data-pane="invites" hidden>
+      <div class="section">
+        <h3>New invite</h3>
+        <p class="help">Invited people join with their Google account. Nobody can create an account without an invite.</p>
+        <div class="error" id="invNoGoogle" hidden style="margin-bottom:12px">Turn on Google sign-in first (Settings → Google sign-in). Invites can only be accepted with Google.</div>
+        <form class="card" id="inviteForm">
+          <div class="grid2">
+            <div class="field"><label for="invRole">Role</label>
+              <select class="input" id="invRole"><option value="viewer">Viewer</option><option value="admin">Admin</option></select></div>
+            <div class="field"><label for="invDays">Link expires in</label>
+              <select class="input" id="invDays"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option></select></div>
+          </div>
+          <div class="field"><label for="invEmail">Google account <span class="help">(optional: only this email can use the link)</span></label>
+            <input class="input" id="invEmail" type="email" placeholder="friend@gmail.com"></div>
+          <div class="field"><label for="invNote">Note <span class="help">(optional, just for you)</span></label>
+            <input class="input" id="invNote" maxlength="80" placeholder="e.g. Grandma's tablet"></div>
+          <label class="switch" id="invControlWrap"><input type="checkbox" id="invControl"><span class="track"></span> Allow using the remote</label>
+          <div style="margin-top:14px"><button class="btn accent" type="submit">Create invite link</button></div>
+          <div id="invResult" hidden>
+            <div class="linkbox"><input class="input" id="invLink" readonly><button class="btn" type="button" id="invCopy">Copy</button></div>
+            <p class="help">Send this link to the person. It works once. You won't be able to see it again.</p>
+          </div>
+        </form>
+      </div>
+      <div class="section">
+        <h3>Recent invites</h3>
+        <div class="tablewrap"><table>
+          <thead><tr><th>For</th><th>Role</th><th>Status</th><th></th></tr></thead>
+          <tbody id="invitesBody"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- google -->
+    <section data-pane="google" hidden>
+      <div class="section">
+        <h3>Google sign-in</h3>
+        <ol class="steps">
+          <li>In <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console → Credentials</a>, create an <b>OAuth client ID</b> of type <b>Web application</b>.</li>
+          <li>Under <b>Authorized redirect URIs</b>, add the redirect URI shown below.</li>
+          <li>Paste the client ID and secret here, save, then turn it on.</li>
+        </ol>
+        <p class="help">Only people who already have an account, or who use an invite link, can sign in with Google. Existing users are matched by email.</p>
+        <form class="card" id="googleForm">
+          <div class="field"><label for="gPublic">Public URL</label>
+            <input class="input" id="gPublic" placeholder="https://tv.example.com">
+            <span class="help">The address people use to open TanchTV. Leave empty to use the current one.</span></div>
+          <div class="field"><label>Redirect URI</label>
+            <div class="linkbox" style="margin:0"><input class="input" id="gRedirect" readonly><button class="btn" type="button" id="gCopy">Copy</button></div></div>
+          <div class="field"><label for="gId">Client ID</label>
+            <input class="input" id="gId" autocomplete="off" spellcheck="false" placeholder="1234-abc.apps.googleusercontent.com"></div>
+          <div class="field"><label for="gSecret">Client secret</label>
+            <input class="input" id="gSecret" type="password" autocomplete="new-password" spellcheck="false"></div>
+          <div class="field"><label class="switch"><input type="checkbox" id="gEnabled"><span class="track"></span> Allow signing in with Google</label></div>
+          <div id="gMsg" hidden style="margin-bottom:12px"></div>
+          <button class="btn accent" type="submit" id="gSave">Save</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ports -->
+    <section data-pane="ports" hidden>
+      <div class="section">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:8px">
+          <h3 style="margin:0">Ports</h3>
+          <button class="btn small accent" id="addPortBtn">+ Add port</button>
+        </div>
+        <p class="help" style="margin-top:0">A port is one capture card plus the device plugged into it (Android TV / Shield, Fire TV or Apple TV).
+          Each port has its own picture and its own remote. Give each device a fixed address on your router.</p>
+        <form class="card" id="portForm" hidden style="margin-bottom:14px">
+          <h3 id="portFormTitle" style="margin-top:0">Add port</h3>
+          <div class="grid2">
+            <div class="field"><label for="pfName">Name</label>
+              <input class="input" id="pfName" maxlength="40" placeholder="e.g. Living room Shield" required></div>
+            <div class="field"><label for="pfKind">Device type</label>
+              <select class="input" id="pfKind"></select></div>
+          </div>
+          <div class="field"><label for="pfUsb">Capture device</label>
+            <select class="input" id="pfUsb"></select>
+            <span class="help" id="pfUsbHelp">Cards are told apart by the USB port they're plugged into.</span></div>
+          <div class="field"><label for="pfHost">Device address (for the remote)</label>
+            <input class="input" id="pfHost" placeholder="192.168.1.50" autocomplete="off" spellcheck="false"></div>
+          <div class="field" id="pfAdbWrap"><label class="switch"><input type="checkbox" id="pfAdb"><span class="track"></span> Use ADB as a fallback when the remote link is down</label></div>
+          <div class="error" id="pfErr" hidden style="margin-bottom:12px"></div>
+          <div style="display:flex; gap:8px">
+            <button class="btn accent" type="submit" id="pfSave">Save</button>
+            <button class="btn" type="button" id="pfCancel">Cancel</button>
+          </div>
+        </form>
+        <div id="portsList"></div>
+      </div>
+    </section>
+    <!-- vlc -->
+    <section data-pane="vlc" hidden>
+      <div class="section">
+        <h3>New VLC link</h3>
+        <p class="help">A private link to the same stream (video + audio) for VLC or any player that opens network streams.
+          In VLC: <b>Media → Open Network Stream</b> (Ctrl+N), paste the link, press Play.
+          Anyone with the link can watch without signing in, so share it carefully. Revoking it stops playback within seconds.</p>
+        <form class="card" id="vlcForm">
+          <div class="grid2">
+            <div class="field"><label for="vlcName">Name</label>
+              <input class="input" id="vlcName" maxlength="60" placeholder="e.g. Living-room PC"></div>
+            <div class="field"><label for="vlcPort">Port</label>
+              <select class="input" id="vlcPort"></select></div>
+            <div class="field"><label for="vlcDays">Expires</label>
+              <select class="input" id="vlcDays"><option value="1">in 1 day</option><option value="7">in 7 days</option>
+                <option value="30">in 30 days</option><option value="0" selected>never</option></select></div>
+          </div>
+          <button class="btn accent" type="submit">Create VLC link</button>
+          <div id="vlcResult" hidden>
+            <div class="linkbox"><input class="input" id="vlcLink" readonly><button class="btn" type="button" id="vlcCopy">Copy</button></div>
+            <p class="help">Copy it now: for safety it can't be shown again (create a new one if you lose it).</p>
+          </div>
+        </form>
+      </div>
+      <div class="section">
+        <h3>Active links</h3>
+        <div class="tablewrap"><table>
+          <thead><tr><th>Name</th><th>Port</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
+          <tbody id="vlcBody"></tbody>
+        </table></div>
+      </div>
+    </section>
+  </div>
+</dialog>
+
+<!-- ============ Pair a port (floating) ============ -->
+<dialog id="pairDlg">
+  <div class="dlg-head"><h2><span id="pairTitle">Pair</span><span class="ptag" id="pairKind"></span></h2><button class="btn ghost small" data-close>✕</button></div>
+  <div class="dlg-body">
+    <img class="pairimg" id="pairImg" alt="Live picture of this port">
+    <p class="help pairhelp" id="pairHelp"></p>
+    <p class="help" id="pairHost" style="margin:0"></p>
+    <div class="pairstatus" id="pairStatus" hidden></div>
+    <form id="pairForm" class="linkbox" hidden>
+      <input class="input" id="pairCode" maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text">
+      <button class="btn accent" type="submit">Pair</button>
+    </form>
+    <div class="pairfoot">
+      <button class="btn" id="pairDone" type="button">Cancel</button>
+      <button class="btn accent" id="pairGo" type="button">Start pairing</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ My account ============ -->
+<dialog id="account" style="width:min(420px, 94vw)">
+  <div class="dlg-head"><h2>My account</h2><button class="btn ghost small" data-close>✕</button></div>
+  <div class="dlg-body">
+    <dl class="kv" id="acctInfo" style="margin-bottom:16px"></dl>
+    <div class="section" style="margin-bottom:20px">
+      <h3>Passkeys</h3>
+      <p class="help" style="margin-top:-4px">Sign in with your fingerprint, face or device PIN (Windows Hello, Face ID / Touch ID, your phone, or a security key). No password needed.</p>
+      <div id="pkList"></div>
+      <div class="error" id="pkErr" hidden style="margin:8px 0"></div>
+      <form id="pkForm" class="linkbox" style="margin-top:8px">
+        <input class="input" id="pkName" maxlength="60" placeholder="Name, e.g. My laptop">
+        <button class="btn accent" type="submit" id="pkAdd">Add passkey</button>
+      </form>
+      <p class="help" id="pkUnsupported" hidden>Passkeys need a secure (https) connection. Open TanchTV through its https address to add one.</p>
+    </div>
+    <form id="pwForm">
+      <div class="field" id="pwCurWrap"><label for="pwCur">Current password</label><input class="input" id="pwCur" type="password" autocomplete="current-password"></div>
+      <div class="field"><label for="pwNew">New password</label><input class="input" id="pwNew" type="password" autocomplete="new-password" minlength="8" required></div>
+      <div class="field"><label for="pwNew2">Repeat new password</label><input class="input" id="pwNew2" type="password" autocomplete="new-password" minlength="8" required></div>
+      <div class="error" id="pwErr" hidden style="margin-bottom:12px"></div>
+      <button class="btn accent" type="submit" id="pwBtn">Change password</button>
+    </form>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import {VideoRTC} from '/video-rtc.js';
+import { passkeysSupported, registerPasskey } from '/static/passkey.js';
+
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+let toastTID = 0;
+function toast(msg, bad = false) {
+  const t = $('toast');
+  // An open modal <dialog> sits in the browser's top layer; put the toast inside it so it's visible.
+  const host = document.querySelector('dialog[open]') || document.body;
+  if (t.parentNode !== host) host.appendChild(t);
+  t.textContent = msg; t.className = 'toast' + (bad ? ' bad' : ''); t.style.display = 'block';
+  clearTimeout(toastTID); toastTID = setTimeout(() => t.style.display = 'none', 4000);
+}
+async function api(path, data, method = 'POST') {
+  const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json' }, body: data === undefined ? undefined : JSON.stringify(data) });
+  let j = {}; try { j = await r.json(); } catch {}
+  if (r.status === 401) { location.href = '/login'; throw new Error('Signed out'); }
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+const getJSON = async path => {
+  const r = await fetch(path);
+  if (r.status === 401) { location.href = '/login'; throw new Error('Signed out'); }
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+};
+function chip(id, cls, text) { const el = $(id); el.className = 'chip ' + (cls || ''); el.querySelector('span').textContent = text; }
+
+// ================= session =================
+const me = (await getJSON('/api/me'));
+const user = me.user;
+
+// ---- ports: each one is a capture card + the device on it, with its own feed and remote ----
+let ports = await getJSON('/api/ports').catch(() => []);
+let curPort = (() => { const saved = +(store.get('tanchtv.port') || 0); return ports.find(p => p.id === saved) || ports[0] || null; })();
+const KIND_SHORT = { androidtv: 'Android TV', firetv: 'Fire TV', appletv: 'Apple TV' };
+const portUrl = path => `/api/ports/${curPort ? curPort.id : 0}${path}`;
+const isAdmin = user.role === 'admin';
+const canControl = user.can_control;
+$('avatar').textContent = (user.display_name || user.username)[0].toUpperCase();
+$('whoName').textContent = user.display_name;
+$('menuName').textContent = user.display_name;
+$('menuRole').textContent = (isAdmin ? 'Admin' : canControl ? 'Viewer · can use the remote' : 'Viewer') + (user.email ? ' · ' + user.email : '');
+$('mSettings').hidden = !isAdmin;
+$('btnUser').onclick = e => { e.stopPropagation(); $('menu').hidden = !$('menu').hidden; $('btnUser').setAttribute('aria-expanded', String(!$('menu').hidden)); };
+document.addEventListener('click', e => {
+  if (!e.target.closest('.usermenu')) $('menu').hidden = true;
+  if (!e.target.closest('.portsel')) { $('portMenu').hidden = true; $('btnPort').setAttribute('aria-expanded', 'false'); }
+});
+$('mLogout').onclick = async () => { await api('/api/logout').catch(() => {}); location.href = '/login'; };
+$('mAccount').onclick = () => { $('menu').hidden = true; openAccount(); };
+$('mSettings').onclick = () => { $('menu').hidden = true; openSettings(); };
+document.querySelectorAll('dialog [data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
+
+// ================= video =================
+let mode = '';
+// This player's session id: ties the video connection(s) and the control channel together on the server.
+const SID = ((crypto.randomUUID && crypto.randomUUID()) || (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)))
+  .replace(/[^A-Za-z0-9-]/g, '').slice(0, 40);
+let restarts = 0;   // automatic reconnects since the last successful start (for the overlay text)
+
+// "Connecting…" overlay: spinner + pulsing dots + elapsed seconds (kept across automatic retries).
+let connT0 = 0, connTID = 0;
+function showConnecting(on, text) {
+  const o = $('stageOverlay');
+  if (!on) { o.hidden = true; clearInterval(connTID); connTID = 0; return; }
+  $('stageMsg').classList.remove('stopped');
+  if (o.hidden || !connTID) connT0 = Date.now();
+  $('stageText').textContent = text || 'Connecting to the TV';
+  o.hidden = false;
+  clearInterval(connTID);
+  const tick = () => { const s = Math.round((Date.now() - connT0) / 1000); $('stageSecs').textContent = s >= 3 ? `${s} s` : ''; };
+  tick(); connTID = setInterval(tick, 1000);
+}
+// iPhone/iPad (iPadOS reports as a Mac, so also check for touch)
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+class TvPlayer extends VideoRTC {
+  oninit() {
+    // Keep streaming when the page is hidden (other tab, minimized, covered by another window, shared to
+    // Discord…). VideoRTC's default is to disconnect on 'visibilitychange'; background = true turns that off.
+    this.background = true; this.visibilityCheck = false;
+    super.oninit();
+    this.video.controls = false;
+    // Some browsers pause media in background tabs; we never pause on purpose, so start it again.
+    this.video.addEventListener('pause', () => {
+      if (this.stopped) return;
+      setTimeout(() => { if (!this.stopped && this.video.paused) this.video.play().catch(() => {}); }, 300);
+    });
+    // Start muted + inline: Safari only allows autoplay (and only then opens the MediaSource) for muted,
+    // inline video. Sound is turned on by the 🔊 button (routeAudio), which is a user gesture.
+    this.video.muted = true; this.video.defaultMuted = true;
+    this.video.playsInline = true; this.video.setAttribute('playsinline', ''); this.video.autoplay = true;
+    this.video.addEventListener('playing', () => { showConnecting(false); clearTimeout(this.watchdog); routeAudio(); });
+    this.video.addEventListener('loadedmetadata', routeAudio);
+  }
+  // Stopped by the server (idle / admin): tear down and don't auto-reconnect until resumed.
+  stop() {
+    this.stopped = true;
+    if (this.ws) this.ignoreClose = (this.ignoreClose || 0) + 1;
+    if (this.reconnectTID) { clearTimeout(this.reconnectTID); this.reconnectTID = 0; }
+    clearTimeout(this.watchdog);
+    this.ondisconnect();
+  }
+  onconnect() {
+    if (this.stopped) return false;
+    const r = super.onconnect();
+    if (r) {
+      mode = ''; chip('chipStream', 'warn', 'Video: connecting…');
+      if (!this.video || this.video.readyState < 3) showConnecting(true, restarts ? 'Still connecting, retrying' : 'Connecting to the TV');
+      // Safety net: only if *nothing at all* arrived 30 s after connecting (no codec reply, no frames),
+      // start over cleanly. A stream that's starting up or briefly stalled is never killed.
+      clearTimeout(this.watchdog);
+      this.watchdog = setTimeout(() => {
+        const v = this.video;
+        if (v && v.readyState === 0 && !this.mseCodecs && this.pcState !== WebSocket.OPEN && this.isConnected) {
+          restarts++; this.restart();
+        }
+      }, 30000);
+    }
+    return r;
+  }
+  // play() that offers a tap-to-start button if autoplay is refused
+  // (e.g. iPhone Low Power Mode blocks even muted autoplay).
+  play() {
+    const v = this.video;
+    if (!soundOn) v.muted = true;
+    v.play().then(() => { $('tapToStart').hidden = true; }).catch(err => {
+      if (!v.muted) { v.muted = true; v.play().then(() => {}).catch(() => { $('tapToStart').hidden = false; }); }
+      else if (err && err.name === 'NotAllowedError') $('tapToStart').hidden = false;
+    });
+  }
+  // Close and reopen the connection. The old socket's 'close' event arrives *after* the new socket exists;
+  // the stock onclose() would then wipe the new socket (-> "this.ws is null" crash), so swallow that one event.
+  restart() {
+    if (this.ws) this.ignoreClose = (this.ignoreClose || 0) + 1;
+    if (this.reconnectTID) { clearTimeout(this.reconnectTID); this.reconnectTID = 0; }
+    this.ondisconnect();
+    this.onconnect();
+  }
+  onopen() {
+    const r = super.onopen();
+    this.onmessage['ui'] = msg => {
+      if (msg.type === 'error' && !mode) { showConnecting(true, 'Stream error, retrying'); chip('chipStream', 'bad', 'Video: error'); }
+      else if (['mse', 'hls', 'mjpeg'].includes(msg.type)) { mode = msg.type.toUpperCase(); chip('chipStream', 'warn', `Video: ${mode} via proxy`); }
+    };
+    return r;
+  }
+  onclose() {
+    if (this.ignoreClose) { this.ignoreClose--; return false; }
+    if (!this.pc) { chip('chipStream', 'bad', 'Video: reconnecting…'); if (this.video && this.video.readyState < 3) showConnecting(true, 'Reconnecting'); }
+    return super.onclose();
+  }
+
+  // Proxied playback (MSE over the WebSocket). go2rtc's stock player sets playbackRate = seconds buffered,
+  // so over a bursty link (Cloudflare/NPM, Wi-Fi) the video keeps lurching between slow motion and fast-forward.
+  // Here: keep a steady ~1 s buffer, play at normal speed, nudge the rate by a few % to stay near live,
+  // and only jump if we fall far behind.
+  onmse() {
+    const MSClass = window.ManagedMediaSource || window.MediaSource;
+    const ms = new MSClass();
+    const TARGET = 1.0;   // seconds of buffer we aim to keep
+    ms.addEventListener('sourceopen', () => {
+      if (!window.ManagedMediaSource) URL.revokeObjectURL(this.video.src);
+      this.send({ type: 'mse', value: this.codecs(MSClass.isTypeSupported) });
+    }, { once: true });
+    if (window.ManagedMediaSource) { this.video.disableRemotePlayback = true; this.video.srcObject = ms; }
+    else { this.video.src = URL.createObjectURL(ms); this.video.srcObject = null; }
+    this.play();
+    this.mseCodecs = '';
+    this.onmessage['mse'] = msg => {
+      if (msg.type !== 'mse') return;
+      this.mseCodecs = msg.value;
+      const sb = ms.addSourceBuffer(msg.value);
+      sb.mode = 'segments';
+      const buf = new Uint8Array(4 * 1024 * 1024);
+      let bufLen = 0, started = false;
+      const v = this.video;
+      sb.addEventListener('updateend', () => {
+        if (ms.readyState !== 'open') return;   // media source torn down (error/reconnect)
+        if (!sb.updating && bufLen > 0) {
+          try { sb.appendBuffer(buf.slice(0, bufLen)); bufLen = 0; } catch {}
+        }
+        try { if (sb.updating || !sb.buffered.length) return; } catch { return; }
+        const end = sb.buffered.end(sb.buffered.length - 1);
+        const start0 = sb.buffered.start(0);
+        // trim old data (keep 10 s)
+        if (end - start0 > 12 && !sb.updating) { try { sb.remove(start0, end - 10); } catch {} }
+        try { if (ms.setLiveSeekableRange) ms.setLiveSeekableRange(Math.max(start0, end - 10), end); } catch {}
+        const gap = end - v.currentTime;
+        if (!started) {
+          if (end - start0 >= TARGET * 0.6) { v.currentTime = Math.max(start0, end - TARGET); started = true; this.play(); }
+          return;
+        }
+        let rate = 1;
+        if (gap > 4) { v.currentTime = end - TARGET; }          // fell far behind (e.g. tab was asleep): jump
+        else if (!IOS) {
+          // Gentle catch-up on desktop/Android. On iOS any rate != 1 makes Safari keep re-syncing the audio
+          // (a short pause every few seconds), so there we always play at 1.0 and only jump if far behind.
+          if (gap > TARGET + 0.8) rate = 1.08;
+          else if (gap > TARGET + 0.3) rate = 1.03;
+          else if (gap < TARGET - 0.6) rate = 0.97;
+        }
+        if (Math.abs(v.playbackRate - rate) > 0.001) { v.preservesPitch = true; v.playbackRate = rate; }
+      });
+      this.ondata = data => {
+        if (sb.updating || bufLen > 0) {
+          const b = new Uint8Array(data);
+          if (bufLen + b.byteLength > buf.byteLength) { bufLen = 0; return; } // way behind: drop, we'll jump
+          buf.set(b, bufLen); bufLen += b.byteLength;
+        } else {
+          try { sb.appendBuffer(data); } catch {}
+        }
+      };
+    };
+  }
+  // go2rtc's stock player only switches MSE -> WebRTC when a detached helper <video> fires 'loadeddata'.
+  // iPhone Safari never fires it (the helper isn't in the page and never plays), so the player stayed on
+  // "MSE via proxy" while the WebRTC stream kept running in the background: two streams, choppy video.
+  // Switch as soon as the peer connection is up instead.
+  onwebrtc() {
+    // iPhone: a WebRTC attempt running alongside seemed to hold back Safari's proxied (MSE) start by
+    // 10–20 s on LTE. So on iOS start MSE first and only begin WebRTC once MSE is up, or after 3 s.
+    if (IOS && !this.rtcGo) {
+      const ws = this.ws, t0 = Date.now();
+      const wait = () => {
+        if (this.ws !== ws || this.pc) return;
+        if (this.mseCodecs || Date.now() - t0 > 3000) { this.rtcGo = true; this.onwebrtc(); this.rtcGo = false; return; }
+        setTimeout(wait, 200);
+      };
+      setTimeout(wait, 200);
+      return;
+    }
+    super.onwebrtc();
+    const pc = this.pc;
+    if (!pc) return;
+    let switched = false;
+    // On mobile data (esp. with iCloud Private Relay) the direct route home never connects and ICE keeps
+    // trying forever in the background. Give up after 10 s and stay on the proxied stream.
+    setTimeout(() => {
+      if (this.pc === pc && pc.connectionState !== 'connected' && this.pcState !== WebSocket.OPEN) {
+        pc.close(); this.pc = null; this.pcState = WebSocket.CLOSED;
+      }
+    }, 10000);
+    pc.addEventListener('connectionstatechange', async () => {
+      if (pc.connectionState !== 'connected' || switched) return;
+      switched = true;
+      // Only switch once video packets are really arriving (on mobile data ICE can say "connected"
+      // through the router's NAT while nothing gets through); otherwise stay on the proxied stream.
+      for (let i = 0; i < 40 && this.pc === pc; i++) {
+        let frames = 0;
+        try {
+          (await pc.getStats()).forEach(s => {
+            if (s.type === 'inbound-rtp' && (s.kind === 'video' || s.mediaType === 'video')) frames = s.framesDecoded || s.packetsReceived || 0;
+          });
+        } catch {}
+        if (frames > 0) {
+          const tracks = pc.getTransceivers().filter(tr => tr.currentDirection === 'recvonly').map(tr => tr.receiver.track);
+          if (this.pc === pc && this.pcState !== WebSocket.OPEN) this.onpcvideo({ srcObject: new MediaStream(tracks) });
+          return;
+        }
+        await new Promise(r => setTimeout(r, 250));
+      }
+      // No media after ~10 s: give up on WebRTC for this session and keep the proxied stream.
+      if (this.pc === pc && this.pcState !== WebSocket.OPEN) { pc.close(); this.pc = null; this.pcState = WebSocket.CLOSED; }
+    });
+  }
+  onpcvideo(ev) {
+    if (this.pcState === WebSocket.OPEN) return;   // already switched (stock 'loadeddata' path fired too)
+    super.onpcvideo(ev);
+    if (this.pcState !== WebSocket.CLOSED) { mode = 'RTC'; describePath(); }
+  }
+}
+customElements.define('tv-player', TvPlayer);
+const player = $('player');
+// WebRTC when the direct route works (home/Tailscale), otherwise MSE over the same WebSocket.
+// (HLS was tried for iPhone; one request per 0.5 s segment over LTE + Cloudflare is worse than one socket.)
+player.mode = 'webrtc,mse';
+
+// ---- video quality: Auto (SD on phones, HD elsewhere) / HD 1080p / SD 720p ----
+const QUALITIES = ['auto', 'hd', 'sd'];
+let quality = QUALITIES.includes(store.get('tanchtv.q')) ? store.get('tanchtv.q') : 'auto';
+const isPhone = () => matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600;
+const effQuality = () => quality === 'auto' ? (isPhone() ? 'sd' : 'hd') : quality;
+const wsUrl = () => new URL('/api/ws?sid=' + SID + '&port=' + (curPort ? curPort.id : '') + (effQuality() === 'sd' ? '&q=sd' : ''), location.href).toString();
+function syncQ() {
+  const e = effQuality().toUpperCase();
+  $('btnQ').textContent = quality === 'auto' ? `Auto · ${e}` : e;
+}
+function setQuality(q) {
+  quality = q; store.set('tanchtv.q', q); syncQ();
+  const url = wsUrl();
+  if (player.wsURL === url) return;
+  player.src = url;
+  player.restart();                // drop the current connection, reconnect to the other stream
+}
+$('btnQ').onclick = () => setQuality(QUALITIES[(QUALITIES.indexOf(quality) + 1) % QUALITIES.length]);
+if (curPort) player.src = wsUrl();
+syncQ();
+
+// ---- port switcher ----
+function renderPortSel() {
+  $('portSel').hidden = !ports.length;
+  if (!curPort) return;
+  $('portName').textContent = curPort.name;
+  $('portKind').textContent = KIND_SHORT[curPort.kind] || curPort.kind;
+  $('portKind').className = 'ptag ' + curPort.kind;
+  $('portMenu').innerHTML = ports.map(p => `<button data-port="${p.id}" class="${p.id === curPort.id ? 'on' : ''}">` +
+    `<span class="ptag ${esc(p.kind)}">${esc(KIND_SHORT[p.kind] || p.kind)}</span>${esc(p.name)}</button>`).join('');
+}
+function showNoPorts() {
+  $('stageMsg').classList.add('stopped');
+  $('stageText').textContent = isAdmin ? 'No ports yet. Add one in Settings → Ports.' : 'No TV is set up yet. Ask an admin.';
+  $('stageSecs').textContent = ''; $('stageOverlay').hidden = false;
+  chip('chipStream', '', 'Video: no port');
+}
+function setPort(id) {
+  const p = ports.find(x => x.id === id);
+  if (!p || (curPort && p.id === curPort.id)) return;
+  curPort = p; store.set('tanchtv.port', String(p.id));
+  renderPortSel(); renderApps(); applyUnsupported(curPort.unsupported);
+  lastStatus = {}; $('slate').hidden = true;
+  if (!player.stopped) { player.src = wsUrl(); player.restart(); showConnecting(true, `Switching to ${p.name}`); }
+  refresh(); sendStatus();
+}
+async function reloadPorts() {
+  ports = await getJSON('/api/ports').catch(() => ports);
+  const keep = curPort && ports.find(p => p.id === curPort.id);
+  if (keep) { curPort = keep; renderPortSel(); renderApps(); applyUnsupported(curPort.unsupported); return; }
+  curPort = null;
+  if (ports.length) { setPort(ports[0].id); if (!player.wsURL) { player.src = wsUrl(); player.onconnect(); } }
+  else { renderPortSel(); player.stop(); showNoPorts(); }
+}
+$('btnPort').onclick = e => {
+  e.stopPropagation(); const m = $('portMenu'); m.hidden = !m.hidden;
+  $('btnPort').setAttribute('aria-expanded', String(!m.hidden));
+};
+$('portMenu').addEventListener('click', e => {
+  const b = e.target.closest('[data-port]'); if (!b) return;
+  $('portMenu').hidden = true; setPort(+b.dataset.port);
+});
+renderPortSel();
+if (!curPort) showNoPorts();
+$('tapToStart').addEventListener('click', e => {
+  e.stopPropagation();
+  const btn = $('tapToStart');
+  if (btn.dataset.mode === 'resume') { resumeStream(); return; }
+  btn.hidden = true;
+  const v = player.video;
+  if (v) v.play().then(() => {}).catch(() => { btn.hidden = false; });
+});
+
+// ---- control channel: report status every 5 s; the server can stop this stream (idle / admin) ----
+let ctl = null, ctlRetry = 0, idleKill = 120, stoppedReason = null, resumeWaiter = null;
+const isWatching = () => { const v = player.video; return !!(v && !v.paused && v.readyState >= 2 && !player.stopped); };
+function sendStatus() {
+  if (!ctl || ctl.readyState !== 1) return;
+  ctl.send(JSON.stringify({ type: 'status', visible: document.visibilityState === 'visible', playing: isWatching(),
+    path: (document.querySelector('#chipStream span')?.textContent || '').replace('Video: ', ''), quality: effQuality(),
+    port: curPort ? curPort.id : null }));
+}
+function openControl() {
+  const url = new URL('/api/session?sid=' + SID, location.href); url.protocol = url.protocol.replace('http', 'ws');
+  const ws = ctl = new WebSocket(url);
+  ws.onopen = () => { ctlRetry = 0; sendStatus(); };
+  ws.onmessage = e => {
+    let m; try { m = JSON.parse(e.data); } catch { return; }
+    if (m.type === 'hello') { idleKill = m.idle_kill || idleKill; if (m.killed && !stoppedReason) onStopped(m.killed); }
+    else if (m.type === 'kill') onStopped(m.reason);
+    else if (m.type === 'resumed' && resumeWaiter) resumeWaiter();
+  };
+  ws.onclose = () => { if (ctl === ws) ctl = null; setTimeout(openControl, Math.min(30000, 1000 * 2 ** ctlRetry++)); };
+}
+function onStopped(reason) {
+  stoppedReason = reason;
+  player.stop();
+  clearInterval(connTID); connTID = 0;
+  const mins = Math.round(idleKill / 60);
+  const text = reason === 'idle' ? `Stopped after ${mins >= 2 ? mins + ' minutes' : idleKill + ' seconds'} without watching`
+    : reason === 'signout' ? 'An admin ended your session' : 'Stopped by an admin';
+  $('stageMsg').classList.add('stopped'); $('stageText').textContent = text; $('stageSecs').textContent = '';
+  $('stageOverlay').hidden = false;
+  chip('chipStream', 'bad', 'Video: stopped');
+  const btn = $('tapToStart');
+  if (reason === 'signout') { btn.hidden = true; setTimeout(() => location.href = '/login', 3000); return; }
+  btn.dataset.mode = 'resume'; btn.textContent = '▶ Resume'; btn.classList.add('resume'); btn.hidden = false;
+}
+async function resumeStream() {
+  const btn = $('tapToStart');
+  btn.hidden = true; btn.dataset.mode = ''; btn.textContent = '▶ Tap to start'; btn.classList.remove('resume');
+  if (ctl && ctl.readyState === 1) {
+    ctl.send(JSON.stringify({ type: 'resume' }));
+    await new Promise(r => { resumeWaiter = r; setTimeout(r, 1500); });
+    resumeWaiter = null;
+  }
+  stoppedReason = null; player.stopped = false; restarts = 0;
+  player.onconnect();
+  player.video && player.video.play().catch(() => {});
+}
+openControl();
+setInterval(sendStatus, 5000);
+// Holding a Web Lock stops Chrome/Edge from freezing this tab while it sits in the background.
+try { navigator.locks?.request('tanchtv-keepalive', () => new Promise(() => {})); } catch {}
+document.addEventListener('visibilitychange', sendStatus);
+
+function pathName(ip) {
+  if (!ip) return 'direct';
+  if (ip.startsWith('10.') || ip.startsWith('192.168.') || /^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return 'LAN';
+  if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(ip)) return 'Tailscale';
+  return 'Internet';
+}
+async function describePath() {
+  const pc = player.pc; if (!pc) return;
+  try {
+    const stats = await pc.getStats(); let pair = null;
+    stats.forEach(s => { if (s.type === 'transport' && s.selectedCandidatePairId) pair = stats.get(s.selectedCandidatePairId); });
+    if (!pair) stats.forEach(s => { if (s.type === 'candidate-pair' && s.nominated && s.state === 'succeeded') pair = s; });
+    const remote = pair && stats.get(pair.remoteCandidateId);
+    const ip = remote && (remote.address || remote.ip);
+    chip('chipStream', 'ok', `Video: WebRTC · ${pathName(ip)}${remote && remote.protocol === 'tcp' ? ' (TCP)' : ''}`);
+  } catch { chip('chipStream', 'ok', 'Video: WebRTC'); }
+}
+setInterval(() => { if (mode === 'RTC') describePath(); }, 10000);
+
+// ---- audio ----
+// Flat mixer and 0–100 %: native playback through the <video> element (cleanest, no Web Audio at all).
+// Mixer on or volume > 100 %: Web Audio chain (with a "playback" latency hint = bigger, steadier buffers):
+//   source -> [voice: mid/side, side turned down] -> bass shelf -> presence (1 kHz, 3 kHz) -> treble shelf
+//          -> leveler (compressor + make-up gain) -> volume -> limiter -> speakers
+//   WebRTC (srcObject = MediaStream) -> createMediaStreamSource, element muted so audio isn't doubled.
+//   MSE (blob src) -> createMediaElementSource (permanent for that element, so it then stays on the graph).
+let soundOn = false;
+const VOL_MAX = 200;
+let volume = Math.min(VOL_MAX, Math.max(0, +(store.get('tanchtv.vol') ?? 100) || 0));
+const MIX_FLAT = { preset: 'off', voice: 0, level: 0, bass: 0, treble: 0 };
+const MIX_PRESETS = {
+  off:   { voice: 0,  level: 0,  bass: 0,  treble: 0 },
+  voice: { voice: 70, level: 35, bass: -3, treble: 1 },
+  night: { voice: 45, level: 80, bass: -5, treble: 0 },
+};
+let mix = (() => { try { return { ...MIX_FLAT, ...JSON.parse(store.get('tanchtv.mix') || '{}') }; } catch { return { ...MIX_FLAT }; } })();
+const mixActive = () => mix.voice > 0 || mix.level > 0 || mix.bass !== 0 || mix.treble !== 0;
+let actx = null, gain = null, inNode = null, streamSrc = null, curStream = null, elemSrc = null, N = {};
+const needsGraph = () => soundOn && (volume > 100 || mixActive());
+function ensureCtx() {
+  if (actx) return;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  try { actx = new Ctx({ latencyHint: 'playback', sampleRate: 48000 }); } catch { actx = new Ctx({ latencyHint: 'playback' }); }
+  const g = (v = 1) => { const n = actx.createGain(); n.gain.value = v; return n; };
+  const bq = (type, f, q) => { const n = actx.createBiquadFilter(); n.type = type; n.frequency.value = f; if (q) n.Q.value = q; return n; };
+  // mid/side matrix: outL = mid + side*s, outR = mid - side*s  (s < 1 pushes dialogue forward)
+  const split = actx.createChannelSplitter(2), merge = actx.createChannelMerger(2);
+  const midSum = g(), sideSum = g(), outL = g(), outR = g();
+  const lm = g(0.5), rm = g(0.5), ls = g(0.5), rs = g(-0.5);
+  split.connect(lm, 0); split.connect(rm, 1); split.connect(ls, 0); split.connect(rs, 1);
+  lm.connect(midSum); rm.connect(midSum); ls.connect(sideSum); rs.connect(sideSum);
+  N.sideL = g(1); N.sideR = g(-1);
+  sideSum.connect(N.sideL); sideSum.connect(N.sideR);
+  midSum.connect(outL); midSum.connect(outR); N.sideL.connect(outL); N.sideR.connect(outR);
+  outL.connect(merge, 0, 0); outR.connect(merge, 0, 1);
+  N.bass = bq('lowshelf', 160); N.mid1 = bq('peaking', 1000, 0.9); N.mid3 = bq('peaking', 3000, 1.0); N.treble = bq('highshelf', 6500);
+  N.comp = actx.createDynamicsCompressor(); N.comp.knee.value = 18; N.comp.attack.value = 0.008; N.comp.release.value = 0.25;
+  N.makeup = g(1);
+  gain = g(0);
+  N.limit = actx.createDynamicsCompressor();
+  N.limit.threshold.value = -1.5; N.limit.knee.value = 0; N.limit.ratio.value = 20; N.limit.attack.value = 0.002; N.limit.release.value = 0.1;
+  merge.connect(N.bass).connect(N.mid1).connect(N.mid3).connect(N.treble).connect(N.comp).connect(N.makeup).connect(gain).connect(N.limit).connect(actx.destination);
+  inNode = split;
+  applyMix();
+}
+function applyMix() {
+  if (!actx) return;
+  const t = actx.currentTime, set = (p, v) => p.setTargetAtTime(v, t, 0.03);
+  const v = mix.voice / 100, l = mix.level / 100;
+  set(N.sideL.gain, 1 - 0.65 * v); set(N.sideR.gain, -(1 - 0.65 * v));
+  set(N.mid1.gain, 2.5 * v); set(N.mid3.gain, 6 * v);
+  set(N.bass.gain, mix.bass); set(N.treble.gain, mix.treble);
+  set(N.comp.threshold, l > 0 ? -12 - 30 * l : 0); set(N.comp.ratio, 1 + 7 * l);
+  set(N.makeup.gain, Math.pow(10, (l * 12 - (v * 2)) / 20));   // raise quiet parts back up; trim a little for the EQ boost
+}
+function dropStreamSrc() { if (streamSrc) { streamSrc.disconnect(); streamSrc = null; curStream = null; } }
+function routeAudio() {
+  const v = player.video; if (!v) return;
+  const stream = v.srcObject instanceof MediaStream ? v.srcObject : null;
+  if (!soundOn) { v.muted = true; if (gain) gain.gain.value = 0; dropStreamSrc(); return; }
+  if (IOS && mode === 'HLS') {
+    // iPhone HLS: Web Audio can't tap native HLS on iOS (it would go silent), so plain volume only (max 100 %).
+    dropStreamSrc(); v.muted = false; v.volume = Math.min(1, volume / 100); return;
+  }
+  if (elemSrc && !stream) {
+    // MSE element already captured by Web Audio: keep using the graph for any volume.
+    v.muted = false; v.volume = 1; applyMix(); gain.gain.setTargetAtTime(volume / 100, actx.currentTime, 0.02); return;
+  }
+  if (!needsGraph()) {
+    // Native path.
+    dropStreamSrc(); if (gain) gain.gain.value = 0;
+    v.muted = false; v.volume = volume / 100;
+    return;
+  }
+  ensureCtx(); actx.resume();
+  if (stream && stream.getAudioTracks().length) {
+    if (curStream !== stream) { dropStreamSrc(); streamSrc = actx.createMediaStreamSource(stream); streamSrc.connect(inNode); curStream = stream; }
+    v.muted = true;
+  } else {
+    if (!elemSrc) { elemSrc = actx.createMediaElementSource(v); elemSrc.connect(inNode); }
+    v.muted = false; v.volume = 1;
+  }
+  applyMix();
+  gain.gain.setTargetAtTime(volume / 100, actx.currentTime, 0.02);
+}
+function syncSound() {
+  $('btnSound').textContent = soundOn && volume > 0 ? '🔊' : '🔇';
+  $('vol').value = volume;
+  $('volOut').textContent = volume + '%';
+  $('volOut').classList.toggle('boost', volume > 100);
+}
+function setVolume(v) {
+  volume = Math.min(VOL_MAX, Math.max(0, Math.round(v))); store.set('tanchtv.vol', String(volume));
+  if (volume > 0 && !soundOn) { toggleSound(); return; }
+  routeAudio(); syncSound();
+}
+function toggleSound() {
+  soundOn = !soundOn;
+  routeAudio();
+  if (soundOn && player.video) player.video.play().catch(() => {});
+  syncSound();
+}
+$('btnSound').onclick = toggleSound;
+$('vol').addEventListener('input', e => setVolume(+e.target.value));
+// Fast way back to 100 %: tap the percentage, double-click the slider, or press 0.
+$('volOut').onclick = () => setVolume(100);
+$('vol').addEventListener('dblclick', () => setVolume(100));
+syncSound();
+
+// ---- mixer panel ----
+const mixInputs = [...document.querySelectorAll('#mixer input[data-k]')];
+const fmtMix = (k, v) => (k === 'bass' || k === 'treble') ? (v > 0 ? '+' : '') + v + ' dB' : v + '%';
+function syncMix() {
+  for (const i of mixInputs) { i.value = mix[i.dataset.k]; i.nextElementSibling.textContent = fmtMix(i.dataset.k, mix[i.dataset.k]); }
+  const p = Object.entries(MIX_PRESETS).find(([, v]) => ['voice', 'level', 'bass', 'treble'].every(k => v[k] === mix[k]));
+  mix.preset = p ? p[0] : 'custom';
+  document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('on', b.dataset.p === mix.preset));
+  $('btnMix').classList.toggle('on', mixActive());
+}
+function saveMix() { syncMix(); store.set('tanchtv.mix', JSON.stringify(mix)); routeAudio(); applyMix(); }
+for (const i of mixInputs) {
+  i.addEventListener('input', () => { mix[i.dataset.k] = +i.value; if (mixActive() && !soundOn) toggleSound(); saveMix(); });
+  i.addEventListener('dblclick', () => { mix[i.dataset.k] = 0; saveMix(); });
+}
+$('presets').addEventListener('click', e => {
+  const p = e.target.dataset.p; if (!p || !MIX_PRESETS[p]) return;
+  Object.assign(mix, MIX_PRESETS[p]); if (mixActive() && !soundOn) toggleSound(); saveMix();
+});
+function toggleMixer(open = $('mixer').hidden) {
+  $('mixer').hidden = !open; $('btnMix').setAttribute('aria-expanded', String(open)); if (open) wake();
+}
+$('btnMix').onclick = () => toggleMixer();
+$('mixClose').onclick = () => toggleMixer(false);
+syncMix();
+
+// ---- fullscreen ----
+// Real fullscreen where the browser allows it (desktop, Android; on Android also lock to landscape).
+// iPhone Safari doesn't allow element fullscreen, so we fall back to a "fill the screen" mode
+// (fixed overlay) that keeps the remote and mixer usable.
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+function setPseudoFull(on) {
+  wrap.classList.toggle('pseudo-fs', on);
+  document.documentElement.classList.toggle('noscroll', on);
+  $('btnFull').textContent = on ? '✕' : '⛶';
+  $('btnFull').title = on ? 'Exit full screen (F / Esc)' : 'Fullscreen (F)';
+  wake();
+}
+async function toggleFull() {
+  if (wrap.classList.contains('pseudo-fs')) { setPseudoFull(false); return; }
+  if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+  if (req) {
+    try {
+      await req.call(wrap, { navigationUI: 'hide' });
+      if (!fsEl()) await new Promise(r => setTimeout(r, 250));  // webkit's version returns nothing
+      if (fsEl()) { try { await screen.orientation.lock('landscape'); } catch {} return; }
+    } catch {}
+  }
+  setPseudoFull(true);
+}
+document.addEventListener('fullscreenchange', () => {
+  $('btnFull').textContent = fsEl() ? '✕' : '⛶';
+  if (!fsEl()) { try { screen.orientation.unlock(); } catch {} }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && wrap.classList.contains('pseudo-fs')) setPseudoFull(false); });
+$('btnFull').onclick = toggleFull;
+
+// ================= auto-hide remote + controls =================
+const stage = $('stage'), remote = $('remote'), wrap = $('wrap');
+const IDLE_MS = 3500;
+let pinned = store.get('tanchtv.pin') === '1', idleTID = 0, overRemote = false;
+const narrow = matchMedia('(max-width: 760px)');
+function setPinned(v) { pinned = v; store.set('tanchtv.pin', v ? '1' : '0'); $('btnPin').classList.toggle('on', v); wake(); }
+const isFull = () => !!fsEl() || wrap.classList.contains('pseudo-fs');
+// Below the video on a phone the remote stays put; in fullscreen it floats over the picture, so it hides too.
+const canHideRemote = () => !pinned && (!narrow.matches || isFull());
+function hideIdle(force = false) {
+  // Keep controls up while the mouse is over the remote or someone is typing text.
+  const a = document.activeElement;
+  const typing = a && wrap.contains(a) && a.matches?.('input[type=text], textarea');
+  if (!force && (overRemote || typing)) { schedule(); return; }
+  stage.classList.add('idle');
+  if (canHideRemote()) remote.classList.add('hide');
+}
+function schedule() { clearTimeout(idleTID); idleTID = setTimeout(hideIdle, IDLE_MS); }
+function wake() { stage.classList.remove('idle'); remote.classList.remove('hide'); schedule(); }
+// Touch: there is no hover, and iOS fires pointerenter on tap but never pointerleave, so hover tracking
+// is mouse-only. A tap on the bare picture toggles the controls (like any phone video player).
+wrap.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') wake(); });
+wrap.addEventListener('pointerdown', e => {
+  const onControls = e.target.closest?.('.remote, .stagebar, .mixer');
+  if (e.pointerType !== 'mouse' && !onControls && !stage.classList.contains('idle') && (isFull() || narrow.matches)) {
+    hideIdle(true); return;
+  }
+  wake();
+});
+remote.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { overRemote = true; wake(); } });
+remote.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { overRemote = false; schedule(); } });
+remote.addEventListener('focusin', wake);
+document.addEventListener('fullscreenchange', wake);
+
+if (canControl) {
+  remote.hidden = false; $('btnPin').hidden = false; $('kbdHint').hidden = false; $('chipRemote').hidden = false;
+  $('btnPin').classList.toggle('on', pinned);
+  $('btnPin').onclick = () => setPinned(!pinned);
+}
+wake();
+
+const sendKey = (key, direction = 'SHORT') => curPort && api(portUrl('/key'), { key, direction }).catch(e => toast(e.message, true));
+const LONG_MS = 450;
+document.querySelectorAll('[data-key]').forEach(btn => {
+  let tid = 0, long = false; const key = btn.dataset.key;
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault(); btn.setPointerCapture(e.pointerId); btn.classList.add('pressed');
+    long = false; tid = setTimeout(() => { long = true; sendKey(key, 'START_LONG'); }, LONG_MS);
+  });
+  btn.addEventListener('pointerup', e => {
+    if (!btn.classList.contains('pressed')) return;
+    btn.classList.remove('pressed'); clearTimeout(tid); long ? sendKey(key, 'END_LONG') : sendKey(key);
+    if (e.pointerType !== 'mouse') btn.blur();   // don't keep focus on touch, so auto-hide can kick in
+    wake();
+  });
+  btn.addEventListener('pointercancel', () => { btn.classList.remove('pressed'); clearTimeout(tid); if (long) sendKey(key, 'END_LONG'); });
+  btn.addEventListener('contextmenu', e => e.preventDefault());
+});
+
+const KEYMAP = { ArrowUp: 'DPAD_UP', ArrowDown: 'DPAD_DOWN', ArrowLeft: 'DPAD_LEFT', ArrowRight: 'DPAD_RIGHT',
+  Enter: 'DPAD_CENTER', Backspace: 'BACK', h: 'HOME', H: 'HOME', ' ': 'MEDIA_PLAY_PAUSE',
+  '+': 'VOLUME_UP', '=': 'VOLUME_UP', '-': 'VOLUME_DOWN', '_': 'VOLUME_DOWN' };
+document.addEventListener('keydown', e => {
+  if (e.target.closest?.('input, textarea, select, dialog') || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'm' || e.key === 'M') { toggleSound(); return; }
+  if (e.key === '[') { setVolume(volume - 10); return; }
+  if (e.key === ']') { setVolume(volume + 10); return; }
+  if (e.key === '0') { setVolume(100); return; }
+  if (e.key === 'x' || e.key === 'X') { toggleMixer(); return; }
+  if (e.key === 'q' || e.key === 'Q') { $('btnQ').click(); return; }
+  if (e.key === 'f' || e.key === 'F') { toggleFull(); return; }
+  if ((e.key === 'p' || e.key === 'P') && ports.length > 1) {
+    const i = ports.findIndex(p => p.id === curPort?.id); setPort(ports[(i + 1) % ports.length].id); return;
+  }
+  if (!canControl) return;
+  if (e.key === 'r' || e.key === 'R') { wake(); return; }
+  const k = KEYMAP[e.key];
+  if (k) { e.preventDefault(); sendKey(k); }
+});
+
+const syncSend = () => { $('textSend').disabled = !$('textIn').value; };
+$('textIn').addEventListener('input', syncSend);
+$('textForm').addEventListener('submit', e => {
+  e.preventDefault(); const t = $('textIn').value; if (!t) return;
+  $('textSend').disabled = true;
+  if (!curPort) return;
+  api(portUrl('/text'), { text: t }).then(() => { $('textIn').value = ''; toast('Sent to the TV.'); })
+    .catch(err => toast(err.message, true)).finally(syncSend);
+});
+function renderApps() {
+  $('apps').innerHTML = '';
+  for (const a of (curPort?.apps || [])) {
+    const b = document.createElement('button'); b.className = 'btn'; b.type = 'button'; b.textContent = a.name;
+    b.onclick = () => api(portUrl('/app'), { app: a.id }).catch(e => toast(e.message, true));
+    $('apps').appendChild(b);
+  }
+}
+// grey out buttons the device type doesn't have (e.g. Mute on Apple TV)
+function applyUnsupported(list) {
+  const na = new Set(list || []);
+  document.querySelectorAll('#remote [data-key]').forEach(b => {
+    b.classList.toggle('na', na.has(b.dataset.key)); b.toggleAttribute('aria-disabled', na.has(b.dataset.key));
+  });
+}
+renderApps(); applyUnsupported(curPort?.unsupported);
+
+// ================= status =================
+const REMOTE_TXT = { connected: ['ok', 'Remote: connected'], starting: ['warn', 'Remote: connecting…'],
+  unreachable: ['bad', 'Remote: device unreachable'], needs_pairing: ['warn', 'Remote: not paired'],
+  pairing: ['warn', 'Remote: pairing…'], no_host: ['bad', 'Remote: no device address'], error: ['bad', 'Remote: error'] };
+const ADB_TXT = { off: ['', 'ADB: off'], connecting: ['warn', 'ADB: connecting…'], awaiting_approval: ['warn', 'ADB: accept on TV'],
+  connected: ['ok', 'ADB: connected'], error: ['bad', 'ADB: unavailable'] };
+let lastStatus = {};
+function showSlate(s) {
+  const off = !!curPort && s && s.signal === false;
+  $('slate').hidden = !off;
+  if (off) $('slateSub').textContent = s.signal_reason === 'unplugged' ? `No signal · ${curPort.name} · capture card unplugged` : `No signal · ${curPort.name}`;
+}
+async function refresh() {
+  if (!curPort) { $('slate').hidden = true; return; }
+  const forPort = curPort.id;
+  try {
+    const s = await getJSON(portUrl('/status'));
+    if (!curPort || curPort.id !== forPort) return;           // switched ports meanwhile
+    showSlate(s);
+    if (!canControl) return;
+    lastStatus = s;
+    chip('chipRemote', ...(REMOTE_TXT[s.remote] || ['', 'Remote: ' + s.remote]));
+    applyUnsupported(s.unsupported || curPort.unsupported);
+    if (isAdmin) {
+      $('chipAdb').hidden = !s.adb_enabled;
+      chip('chipAdb', ...(ADB_TXT[s.adb] || ['', 'ADB: ' + s.adb]));
+      $('pairBanner').hidden = !['needs_pairing', 'pairing'].includes(s.remote);
+      $('pairBanner').querySelector('span').textContent = `⚠ The remote for “${curPort.name}” isn't paired yet.`;
+    }
+  } catch {}
+}
+refresh(); setInterval(refresh, 3000);
+
+// ================= my account =================
+function openAccount() {
+  $('acctInfo').innerHTML = `<dt>Name</dt><dd>${esc(user.display_name)}</dd><dt>Username</dt><dd>${esc(user.username)}</dd>` +
+    (user.email ? `<dt>Email</dt><dd>${esc(user.email)}</dd>` : '') +
+    `<dt>Role</dt><dd>${isAdmin ? 'Admin' : 'Viewer'}${!isAdmin && canControl ? ' · can use the remote' : ''}</dd>` +
+    `<dt>Sign-in</dt><dd>${[user.has_password && 'password', user.google && 'Google'].filter(Boolean).join(' + ') || '—'}</dd>`;
+  $('pwForm').hidden = !user.has_password;  // Google-only accounts have no password to change
+  $('pwErr').hidden = true; $('pwForm').reset();
+  $('pkErr').hidden = true;
+  const ok = passkeysSupported();
+  $('pkForm').hidden = !ok; $('pkUnsupported').hidden = ok;
+  loadPasskeys();
+  $('account').showModal();
+}
+async function loadPasskeys() {
+  const rows = await getJSON('/api/passkeys').catch(() => []);
+  $('pkList').innerHTML = rows.length ? rows.map(p => `<div class="pkrow" data-id="${p.id}"><div><b>${esc(p.name)}</b>
+      <small>Added ${esc(fmtDate(p.created_at))} · last used ${esc(fmtDate(p.last_used))}</small></div>
+      <button class="btn small danger" data-f="pkdel">Remove</button></div>`).join('')
+    : '<p class="help" style="margin:4px 0">No passkeys yet.</p>';
+}
+$('pkForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('pkErr').hidden = true; $('pkAdd').disabled = true;
+  try {
+    await registerPasskey($('pkName').value.trim() || guessDeviceName());
+    $('pkName').value = ''; toast('Passkey added. You can now use it on the sign-in page.'); loadPasskeys();
+  } catch (err) { $('pkErr').textContent = err.message; $('pkErr').hidden = false; }
+  finally { $('pkAdd').disabled = false; }
+});
+$('pkList').addEventListener('click', async e => {
+  if (e.target.dataset.f !== 'pkdel') return;
+  const row = e.target.closest('.pkrow');
+  if (!confirm(`Remove the passkey “${row.querySelector('b').textContent}”? You can't sign in with it anymore.`)) return;
+  try { await api(`/api/passkeys/${row.dataset.id}`, undefined, 'DELETE'); toast('Passkey removed.'); } catch (err) { toast(err.message, true); }
+  loadPasskeys();
+});
+function guessDeviceName() {
+  const ua = navigator.userAgent;
+  const os = /iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : 'Device';
+  const br = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : '';
+  return br ? `${os} · ${br}` : os;
+}
+$('pwForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('pwErr').hidden = true;
+  if ($('pwNew').value !== $('pwNew2').value) { $('pwErr').textContent = "Passwords don't match."; $('pwErr').hidden = false; return; }
+  try { await api('/api/me/password', { current: $('pwCur').value, new: $('pwNew').value }); user.has_password = true; $('account').close(); toast('Password updated.'); }
+  catch (err) { $('pwErr').textContent = err.message; $('pwErr').hidden = false; }
+});
+
+// ================= settings (admin) =================
+let currentTab = '', streamsTID = 0;
+function showTab(name) {
+  currentTab = name;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== name);
+  ({ streams: loadStreams, users: loadUsers, invites: loadInvites, google: loadSettings, ports: loadPortsAdmin, vlc: loadVlc })[name]();
+}
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function openSettings(tab = 'streams') { if (!isAdmin) return; $('settings').showModal(); showTab(tab); }
+
+// ---- Streams (admin): who is watching, kill / kill & sign out ----
+const fmtDur = s => s < 60 ? `${s} s` : s < 3600 ? `${Math.floor(s / 60)} min${s % 60 && s < 600 ? ' ' + (s % 60) + ' s' : ''}` : `${Math.floor(s / 3600)} h ${Math.floor(s % 3600 / 60)} min`;
+const fmtMB = b => b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : (b / 1e6).toFixed(0) + ' MB';
+async function loadStreams() {
+  clearTimeout(streamsTID);
+  if (!$('settings').open || currentTab !== 'streams') return;
+  try {
+    const d = await getJSON('/api/admin/streams?me=' + encodeURIComponent(SID));
+    const now = Date.now() / 1000;
+    const live = d.streams.filter(s => s.state !== 'stopped');
+    $('streamCount').textContent = live.length;
+    $('streamsBody').innerHTML = d.streams.length ? d.streams.map(s => {
+      const st = s.state === 'watching' || s.state === 'playing in background' ? `<span class="badge ok">${s.state}</span>`
+        : s.state === 'stopped' ? '<span class="badge off">stopped</span>'
+        : `<span class="badge warn">${esc(s.state)}</span><small>for ${esc(fmtDur(s.state_secs))} · stops at ${esc(fmtDur(d.idle_kill))}</small>`;
+      const route = (s.port ? `<b>${esc(s.port)}</b><small>` : '') + esc(s.path || (s.kind === 'vlc' ? 'VLC link' : '—')) +
+        (s.quality ? ` · ${esc(s.quality.toUpperCase())}` : '') + (s.port ? '</small>' : '');
+      const data = s.bytes ? `<small>${esc(fmtMB(s.bytes))} via server</small>` : (s.kind === 'web' ? '<small>direct (WebRTC) or not started</small>' : '');
+      return `<tr data-sid="${esc(s.sid)}">
+        <td><b>${esc(s.user || '—')}</b>${s.mine ? ' <span class="badge">this device</span>' : ''}<small>${esc(s.device)} · ${esc(s.ip)}</small></td>
+        <td data-l="Route">${route}${data}</td>
+        <td data-l="Status">${st}</td>
+        <td data-l="Started">${esc(fmtDur(Math.max(0, Math.round(now - s.started))))} ago</td>
+        <td>${s.state === 'stopped' ? '' : `<button class="btn small danger" data-f="kill">Stop</button>`}
+            ${s.can_signout && s.state !== 'stopped' && !s.mine ? `<button class="btn small danger" data-f="signout" title="Stop all their streams and end their login sessions">Stop &amp; sign out</button>` : ''}</td></tr>`;
+    }).join('') : '<tr><td colspan="5" class="help">Nobody is watching.</td></tr>';
+    $('streamsHelp').textContent = `Streams that are paused or stop reporting for ${fmtDur(d.idle_kill)} are stopped automatically (playing in a background tab or minimized is fine). Viewers can press Resume.`;
+    const srv = d.server || {};
+    $('serverInfo').textContent = srv.error ? `Stream server: ${srv.error}` :
+      'Stream server: ' + Object.entries(srv).map(([n, v]) => `${n === 'shield' ? 'HD' : n === 'shield_sd' ? 'SD' : n} ${v.running ? 'running' : 'stopped'}, ${v.consumers.length} connection${v.consumers.length === 1 ? '' : 's'}`).join(' · ');
+  } catch (err) { $('streamsBody').innerHTML = `<tr><td colspan="5" class="help">${esc(err.message)}</td></tr>`; }
+  streamsTID = setTimeout(loadStreams, 3000);
+}
+$('streamsBody').addEventListener('click', async e => {
+  const f = e.target.dataset.f; if (!f) return;
+  const tr = e.target.closest('tr'), who = tr.querySelector('b').textContent;
+  if (f === 'signout' && !confirm(`Stop every stream of ${who} and sign them out on all devices?`)) return;
+  try { await api(`/api/admin/streams/${encodeURIComponent(tr.dataset.sid)}/kill`, { signout: f === 'signout' }); toast(f === 'signout' ? `${who} was signed out.` : 'Stream stopped.'); }
+  catch (err) { toast(err.message, true); }
+  loadStreams();
+});
+$('killAll').onclick = async () => {
+  if (!confirm('Stop every stream except this device?')) return;
+  try { const r = await api('/api/admin/streams/kill-all', { keep: SID }); toast(`Stopped ${r.killed} stream${r.killed === 1 ? '' : 's'}.`); } catch (err) { toast(err.message, true); }
+  loadStreams();
+};
+$('settings').addEventListener('close', () => clearTimeout(streamsTID));
+$('bannerPair').onclick = () => curPort && openPairDlg(curPort);
+
+const fmtDate = ts => ts ? new Date(ts * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'never';
+const sw = (checked, disabled, attrs) => `<label class="switch"><input type="checkbox" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''} ${attrs}><span class="track"></span></label>`;
+
+async function loadUsers() {
+  const users = await getJSON('/api/admin/users');
+  $('usersBody').innerHTML = users.map(u => {
+    const locked = u.is_root, self = u.id === user.id;
+    const login = [u.has_password && 'password', u.google && 'Google'].filter(Boolean).join(' + ');
+    return `<tr data-id="${u.id}">
+      <td><b>${esc(u.display_name)}</b>${u.is_root ? ' <span class="badge admin">built-in</span>' : ''}${self ? ' <span class="badge">you</span>' : ''}
+        <small>${esc(u.username)}${u.email ? ' · ' + esc(u.email) : ''}</small><small>${esc(login)} · last seen ${esc(fmtDate(u.last_login))}</small></td>
+      <td data-l="Role"><select class="input" data-f="role" style="padding:5px 8px; width:auto" ${locked || self ? 'disabled' : ''}>
+        <option value="viewer" ${u.role === 'viewer' ? 'selected' : ''}>Viewer</option>
+        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option></select></td>
+      <td data-l="Remote">${sw(u.role === 'admin' || u.raw_can_control, u.role === 'admin' || locked, 'data-f="can_control"')}</td>
+      <td data-l="Active">${sw(!u.disabled, locked || self, 'data-f="active"')}${locked ? '<small>CLI only</small>' : ''}</td>
+      <td>${locked || self ? '' : '<button class="btn small danger" data-f="delete">Delete</button>'}</td></tr>`;
+  }).join('');
+}
+$('usersBody').addEventListener('change', async e => {
+  const tr = e.target.closest('tr'), id = tr.dataset.id, f = e.target.dataset.f;
+  const data = f === 'role' ? { role: e.target.value } : f === 'can_control' ? { can_control: e.target.checked } : { disabled: !e.target.checked };
+  try { await api(`/api/admin/users/${id}`, data); toast('Saved.'); } catch (err) { toast(err.message, true); }
+  loadUsers();
+});
+$('usersBody').addEventListener('click', async e => {
+  if (e.target.dataset.f !== 'delete') return;
+  const tr = e.target.closest('tr');
+  if (!confirm(`Delete ${tr.querySelector('b').textContent}? They'll be signed out and lose access.`)) return;
+  try { await api(`/api/admin/users/${tr.dataset.id}`, undefined, 'DELETE'); toast('User deleted.'); } catch (err) { toast(err.message, true); }
+  loadUsers();
+});
+
+function syncInviteControl() {
+  const admin = $('invRole').value === 'admin';
+  $('invControl').disabled = admin; if (admin) $('invControl').checked = true;
+}
+$('invRole').onchange = syncInviteControl;
+$('inviteForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const r = await api('/api/admin/invites', { role: $('invRole').value, can_control: $('invControl').checked,
+      email: $('invEmail').value.trim(), note: $('invNote').value.trim(), days: +$('invDays').value });
+    $('invLink').value = r.link; $('invResult').hidden = false; $('invLink').select();
+    $('invEmail').value = ''; $('invNote').value = '';
+    loadInvites();
+  } catch (err) { toast(err.message, true); }
+});
+async function copy(text) { try { await navigator.clipboard.writeText(text); toast('Copied.'); } catch { toast('Select the text and copy it.', true); } }
+$('invCopy').onclick = () => copy($('invLink').value);
+async function loadInvites() {
+  syncInviteControl();
+  getJSON('/api/admin/settings').then(s => {
+    const ok = s.google_enabled && s.google_client_id && s.google_client_secret_set;
+    $('invNoGoogle').hidden = !!ok;
+    $('inviteForm').querySelector('button[type=submit]').disabled = !ok;
+  }).catch(() => {});
+  const rows = await getJSON('/api/admin/invites');
+  const now = Date.now() / 1000;
+  $('invitesBody').innerHTML = rows.length ? rows.map(i => {
+    const st = i.used_at ? `Used by <b>${esc(i.used_by || 'deleted user')}</b><small>${esc(fmtDate(i.used_at))}</small>`
+      : i.expires_at < now ? '<span class="badge off">expired</span>' : `Pending<small>expires ${esc(fmtDate(i.expires_at))}</small>`;
+    return `<tr data-id="${i.id}"><td>${esc(i.email || i.note || 'anyone with the link')}${i.email && i.note ? `<small>${esc(i.note)}</small>` : ''}
+      <small>by ${esc(i.created_by || '—')}</small></td>
+      <td data-l="Role"><span class="badge ${i.role === 'admin' ? 'admin' : ''}">${i.role}</span>${i.role === 'viewer' ? `<small>${i.can_control ? 'with remote' : 'watch only'}</small>` : ''}</td>
+      <td data-l="Status"><span>${st}</span></td><td>${!i.used_at && i.expires_at > now ? '<button class="btn small danger" data-f="revoke">Revoke</button>' : ''}</td></tr>`;
+  }).join('') : '<tr><td colspan="4" class="help">No invites yet.</td></tr>';
+}
+$('invitesBody').addEventListener('click', async e => {
+  if (e.target.dataset.f !== 'revoke') return;
+  try { await api(`/api/admin/invites/${e.target.closest('tr').dataset.id}`, undefined, 'DELETE'); toast('Invite revoked.'); } catch (err) { toast(err.message, true); }
+  loadInvites();
+});
+
+let settings = {};
+async function loadSettings() {
+  settings = await getJSON('/api/admin/settings');
+  $('gPublic').value = settings.public_url; $('gRedirect').value = settings.redirect_uri;
+  $('gId').value = settings.google_client_id; $('gSecret').value = '';
+  $('gSecret').placeholder = settings.google_client_secret_set ? '•••••••• saved (type to replace)' : 'GOCSPX-…';
+  $('gEnabled').checked = settings.google_enabled;
+}
+$('gCopy').onclick = () => copy($('gRedirect').value);
+function gMsg(text, ok) { const m = $('gMsg'); m.className = ok ? 'success' : 'error'; m.textContent = text; m.hidden = !text; }
+$('googleForm').addEventListener('submit', async e => {
+  e.preventDefault(); gMsg('');
+  const data = { public_url: $('gPublic').value.trim(), google_client_id: $('gId').value.trim(), google_enabled: $('gEnabled').checked };
+  if ($('gSecret').value.trim()) data.google_client_secret = $('gSecret').value.trim();
+  $('gSave').disabled = true;
+  try {
+    await api('/api/admin/settings', data);
+    await loadSettings();  // only reload after a successful save, so typed values are never lost
+    gMsg(data.google_enabled ? 'Saved. Google sign-in is on: the sign-in page now shows “Continue with Google”.' : 'Saved. Google sign-in is off.', true);
+  } catch (err) { gMsg(err.message, false); }
+  finally { $('gSave').disabled = false; }
+});
+// ---- VLC links ----
+async function loadVlc() {
+  const rows = await getJSON('/api/admin/streamlinks');
+  const now = Date.now() / 1000;
+  const keep = $('vlcPort').value;
+  $('vlcPort').innerHTML = ports.length ? ports.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('') : '<option value="">No ports</option>';
+  if (keep && ports.some(p => String(p.id) === keep)) $('vlcPort').value = keep; else if (curPort) $('vlcPort').value = curPort.id;
+  $('vlcBody').innerHTML = rows.length ? rows.map(l => {
+    const expired = l.expires_at && l.expires_at < now;
+    return `<tr data-id="${l.id}"><td><b>${esc(l.name)}</b><small>by ${esc(l.created_by || '—')} · ${esc(fmtDate(l.created_at))}</small></td>
+      <td data-l="Port">${l.port_name ? esc(l.port_name) : '<span class="badge off">no port</span>'}</td>
+      <td data-l="Expires">${expired ? '<span class="badge off">expired</span>' : l.expires_at ? esc(fmtDate(l.expires_at)) : 'never'}</td>
+      <td data-l="Last used"><span>${l.last_used ? esc(fmtDate(l.last_used)) + ` · ${esc(l.last_ip || '')}` : 'never'}</span></td>
+      <td><button class="btn small danger" data-f="revoke">Revoke</button></td></tr>`;
+  }).join('') : '<tr><td colspan="5" class="help">No VLC links yet.</td></tr>';
+}
+$('vlcForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const r = await api('/api/admin/streamlinks', { name: $('vlcName').value.trim(), days: +$('vlcDays').value, port: +$('vlcPort').value });
+    $('vlcLink').value = r.url; $('vlcResult').hidden = false; $('vlcLink').select(); $('vlcName').value = '';
+    loadVlc();
+  } catch (err) { toast(err.message, true); }
+});
+$('vlcCopy').onclick = () => copy($('vlcLink').value);
+$('vlcBody').addEventListener('click', async e => {
+  if (e.target.dataset.f !== 'revoke') return;
+  const tr = e.target.closest('tr');
+  if (!confirm(`Revoke “${tr.querySelector('b').textContent}”? Anyone using it stops watching.`)) return;
+  try { await api(`/api/admin/streamlinks/${tr.dataset.id}`, undefined, 'DELETE'); toast('Link revoked.'); } catch (err) { toast(err.message, true); }
+  loadVlc();
+});
+
+// ================= Settings → Ports (admin) =================
+const STATE_TXT = { connected: ['ok', 'connected'], starting: ['warn', 'connecting…'], unreachable: ['off', 'unreachable'],
+  needs_pairing: ['warn', 'not paired'], pairing: ['warn', 'pairing…'], no_host: ['off', 'no address'], error: ['off', 'error'] };
+let adminPorts = [], devices = [], kinds = {}, portsTID = 0, editingPort = null;
+
+function devLabel(d) {
+  return `USB ${d.usb} · ${d.name}${d.vendor_product ? ' (' + d.vendor_product + ')' : ''}${d.audio ? ' · with audio' : ' · no audio'}`;
+}
+async function loadPortsAdmin() {
+  clearTimeout(portsTID);
+  if (!$('settings').open || currentTab !== 'ports') return;
+  try {
+    const [ps, dv] = await Promise.all([getJSON('/api/ports'), getJSON('/api/admin/devices')]);
+    adminPorts = ps; devices = dv.devices; kinds = dv.kinds;
+    const sts = await Promise.all(ps.map(p => getJSON(`/api/ports/${p.id}/status`).catch(() => ({}))));
+    renderPortCards(ps, sts);
+  } catch (err) { $('portsList').innerHTML = `<p class="error">${esc(err.message)}</p>`; }
+  portsTID = setTimeout(loadPortsAdmin, 3000);
+}
+function renderPortCards(ps, sts) {
+  if (!ps.length) { $('portsList').innerHTML = '<p class="help">No ports yet. Press “+ Add port”.</p>'; return; }
+  $('portsList').innerHTML = ps.map((p, i) => {
+    const s = sts[i] || {}, st = STATE_TXT[s.remote] || ['', s.remote || '…'];
+    const dev = devices.find(d => d.usb === p.usb);
+    const ok = s.remote === 'connected';
+    const pairBtn = p.kind === 'firetv' ? (ok ? 'Reconnect' : 'Connect') : (ok ? 'Pair again' : 'Pair');
+    const info = [];
+    if (s.device) info.push(esc([s.device.manufacturer, s.device.model].filter(Boolean).join(' ')));
+    if (s.is_on !== undefined) info.push(s.is_on ? 'On' : 'Standby');
+    if (s.current_app) info.push(esc(s.current_app));
+    return `<div class="portcard" data-id="${p.id}">
+      <div class="ph"><b>${esc(p.name)}</b><span class="ptag ${esc(p.kind)}">${esc(p.kind_label)}</span>
+        <span class="badge ${st[0]}">remote ${esc(st[1])}</span></div>
+      <div class="meta">Capture: ${dev ? esc(devLabel(dev)) : `USB ${esc(p.usb)} · <span style="color:#ff8b8e">not plugged in</span>`}<br>
+        Device: ${p.host ? esc(p.host) : '<span style="color:#ff8b8e">no address</span>'}${info.length ? ' · ' + info.join(' · ') : ''}</div>
+      ${s.remote_error && !ok ? `<p class="error" style="margin:0 0 10px">${esc(s.remote_error)}</p>` : ''}
+      <div class="row2">
+        <button class="btn small ${ok ? '' : 'accent'}" data-f="pair">${pairBtn}</button>
+        <button class="btn small" data-f="edit">Edit</button>
+        <button class="btn small danger" data-f="remove">Remove</button>
+      </div>
+      ${p.kind === 'androidtv' ? `<div class="row2" style="margin-top:8px">
+        <label class="switch"><input type="checkbox" data-f="adb" ${p.adb_enabled ? 'checked' : ''}><span class="track"></span> ADB fallback</label>
+        ${p.adb_enabled ? `<span class="help">ADB: ${esc((ADB_TXT[s.adb] || ['', s.adb || 'off'])[1].replace('ADB: ', ''))}</span>
+          <button class="btn small" data-f="adbconnect">Connect ADB</button>` : ''}
+      </div>${p.adb_enabled && s.adb_error ? `<p class="error" style="margin:8px 0 0">${esc(s.adb_error)}</p>` : ''}` : ''}
+    </div>`;
+  }).join('');
+}
+
+$('portsList').addEventListener('click', async e => {
+  const f = e.target.dataset.f; if (!f || f === 'adb') return;
+  const card = e.target.closest('.portcard'), id = +card.dataset.id, p = adminPorts.find(x => x.id === id);
+  if (f === 'pair') { openPairDlg(p); return; }
+  if (f === 'edit') { openPortForm(p); return; }
+  if (f === 'remove') {
+    if (!confirm(`Remove the port “${p.name}”? Its picture, remote pairing and VLC links stop working.`)) return;
+    try { const r = await api(`/api/admin/ports/${id}`, undefined, 'DELETE'); toast(r.warning ? 'Removed (stream server: ' + r.warning + ')' : 'Port removed.', !!r.warning); }
+    catch (err) { toast(err.message, true); }
+    await reloadPorts(); loadPortsAdmin(); return;
+  }
+  if (f === 'adbconnect') {
+    api(`/api/admin/ports/${id}/adb/connect`).then(() => toast('If this is the first time, choose “Allow” on the TV.')).catch(err => toast(err.message, true));
+  }
+});
+$('portsList').addEventListener('change', async e => {
+  if (e.target.dataset.f !== 'adb') return;
+  const id = +e.target.closest('.portcard').dataset.id;
+  try { await api(`/api/admin/ports/${id}`, { adb_enabled: e.target.checked }); } catch (err) { toast(err.message, true); }
+  loadPortsAdmin(); refresh();
+});
+
+// ---- floating pairing window ----
+let pairPort = null, pairImgTID = 0, pairBusy = false;
+const PAIR_VERB = { firetv: 'Connect', appletv: 'Start pairing', androidtv: 'Start pairing' };
+function pairSet(stage, msg = '') {
+  // stage: idle | waiting | code | done | error
+  const fire = pairPort.kind === 'firetv';
+  $('pairStatus').className = 'pairstatus ' + stage;
+  $('pairStatus').innerHTML = {
+    idle: '',
+    waiting: `<span class="spin"></span> ${esc(msg || (fire ? 'Look at the TV and choose “Allow”…' : 'Asking the TV for a code…'))}`,
+    code: `<b>${esc(msg || 'Type the code shown on the TV.')}</b>`,
+    done: `✓ ${esc(msg || (fire ? 'Connected.' : 'Paired. The remote is ready.'))}`,
+    error: esc(msg),
+  }[stage];
+  $('pairStatus').hidden = stage === 'idle';
+  $('pairForm').hidden = stage !== 'code';
+  $('pairGo').hidden = stage === 'waiting' || stage === 'code' || stage === 'done';
+  $('pairGo').textContent = stage === 'error' ? 'Try again' : PAIR_VERB[pairPort.kind];
+  $('pairDone').textContent = stage === 'done' ? 'Done' : 'Cancel';
+  $('pairDone').classList.toggle('accent', stage === 'done');
+  if (stage === 'code') { $('pairCode').value = ''; $('pairCode').placeholder = pairPort.kind === 'appletv' ? '1234' : 'A1B2C3'; setTimeout(() => $('pairCode').focus(), 50); }
+}
+function openPairDlg(p) {
+  if (!isAdmin || !p) return;
+  pairPort = p;
+  $('pairTitle').textContent = `${p.kind === 'firetv' ? 'Connect' : 'Pair'} “${p.name}”`;
+  $('pairKind').className = 'ptag ' + p.kind; $('pairKind').textContent = p.kind_label || p.kind;
+  $('pairHelp').textContent = p.pairing_help || '';
+  $('pairHost').textContent = p.host ? `Device address: ${p.host}` : 'This port has no device address yet. Set it with Edit first.';
+  $('pairGo').disabled = !p.host;
+  pairSet('idle');
+  const tick = () => { $('pairImg').src = `/api/frame.jpeg?port=${p.id}&t=${Date.now()}`; };
+  tick(); clearInterval(pairImgTID); pairImgTID = setInterval(tick, 1000);
+  $('pairDlg').showModal();
+}
+$('pairDlg').addEventListener('close', () => {
+  clearInterval(pairImgTID); pairPort = null; pairBusy = false;
+  loadPortsAdmin(); refresh();
+});
+$('pairDone').onclick = () => $('pairDlg').close();
+$('pairGo').onclick = async () => {
+  if (pairBusy || !pairPort) return;
+  pairBusy = true; pairSet('waiting');
+  const p = pairPort;
+  try {
+    const r = await api(`/api/admin/ports/${p.id}/pair/start`);
+    if (pairPort !== p) return;
+    r.done ? pairSet('done') : pairSet('code', r.prompt);
+  } catch (err) { if (pairPort === p) pairSet('error', err.message); }
+  finally { pairBusy = false; }
+};
+$('pairForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const code = $('pairCode').value.trim(); if (!code || pairBusy || !pairPort) return;
+  pairBusy = true; const p = pairPort;
+  pairSet('waiting', 'Checking the code…');
+  try {
+    const r = await api(`/api/admin/ports/${p.id}/pair/finish`, { code });
+    if (pairPort !== p) return;
+    r.done ? pairSet('done') : pairSet('code', r.prompt || 'Type the next code shown on the TV.');
+  } catch (err) { if (pairPort === p) pairSet('error', err.message); }
+  finally { pairBusy = false; }
+});
+
+// ---- add / edit form ----
+function openPortForm(p) {
+  editingPort = p || null;
+  $('portFormTitle').textContent = p ? `Edit “${p.name}”` : 'Add port';
+  $('pfKind').innerHTML = Object.entries(kinds).map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('');
+  const opts = devices.map(d => {
+    const usedBy = d.port_id && (!p || d.port_id !== p.id) ? d.port_name : null;
+    return `<option value="${esc(d.usb)}" ${usedBy ? 'disabled' : ''}>${esc(devLabel(d))}${usedBy ? ' — used by ' + esc(usedBy) : ''}</option>`;
+  });
+  if (p && !devices.some(d => d.usb === p.usb)) opts.unshift(`<option value="${esc(p.usb)}">USB ${esc(p.usb)} (not plugged in)</option>`);
+  $('pfUsb').innerHTML = opts.length ? opts.join('') : '<option value="">No capture devices found</option>';
+  $('pfName').value = p ? p.name : '';
+  $('pfKind').value = p ? p.kind : 'androidtv';
+  $('pfHost').value = p ? p.host : '';
+  $('pfAdb').checked = !!(p && p.adb_enabled);
+  if (p) $('pfUsb').value = p.usb;
+  else { const free = devices.find(d => !d.port_id && d.hdmi_capture) || devices.find(d => !d.port_id); if (free) $('pfUsb').value = free.usb; }
+  syncPfKind();
+  $('pfErr').hidden = true; $('portForm').hidden = false; $('addPortBtn').hidden = true;
+  $('pfName').focus();
+}
+function syncPfKind() {
+  $('pfAdbWrap').hidden = $('pfKind').value !== 'androidtv';
+  $('pfHost').placeholder = { appletv: 'e.g. 192.168.1.51 (Apple TV)', firetv: 'e.g. 192.168.1.52 (Fire TV)' }[$('pfKind').value] || 'e.g. 192.168.1.50';
+}
+$('pfKind').onchange = syncPfKind;
+function closePortForm() { $('portForm').hidden = true; $('addPortBtn').hidden = false; editingPort = null; }
+$('pfCancel').onclick = closePortForm;
+$('addPortBtn').onclick = async () => {
+  try { const dv = await getJSON('/api/admin/devices'); devices = dv.devices; kinds = dv.kinds; } catch {}
+  openPortForm(null);
+};
+$('portForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('pfErr').hidden = true; $('pfSave').disabled = true;
+  const data = { name: $('pfName').value.trim(), usb: $('pfUsb').value, kind: $('pfKind').value, host: $('pfHost').value.trim(),
+    adb_enabled: $('pfKind').value === 'androidtv' && $('pfAdb').checked };
+  if (editingPort && data.kind !== editingPort.kind &&
+      !confirm('Changing the device type removes this port\'s current pairing. Continue?')) { $('pfSave').disabled = false; return; }
+  try {
+    const r = await api(editingPort ? `/api/admin/ports/${editingPort.id}` : '/api/admin/ports', data);
+    toast(r.warning ? 'Saved, but the stream server reported: ' + r.warning : (editingPort ? 'Saved.' : 'Port added. Its picture starts in a few seconds.'), !!r.warning);
+    closePortForm(); await reloadPorts(); loadPortsAdmin();
+  } catch (err) { $('pfErr').textContent = err.message; $('pfErr').hidden = false; }
+  finally { $('pfSave').disabled = false; }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+# TanchTV: TV boxes on HDMI capture cards, watched and remote-controlled from the browser.
+#
+#   tanchtv-stream  go2rtc: captures every card (go2rtc/capture.sh), encodes H.264 + Opus/AAC,
+#                   serves WebRTC on :8555. Its API/RTSP listen on loopback only.
+#   tanchtv-app     web UI + API on :8095 (sign-in, roles, remote control, VLC links).
+#                   Writes go2rtc's config whenever ports change.
+#
+# Both use host networking on purpose: WebRTC must announce the host's real addresses (LAN, VPN)
+# so browsers can connect straight to it. Put an https reverse proxy in front of :8095.
+#
+# Before the first start:  cp .env.example .env  &&  cp go2rtc/go2rtc.example.yaml go2rtc/go2rtc.yaml
+services:
+  tanchtv-stream:
+    image: alexxit/go2rtc:1.9.15-hardware
+    container_name: tanchtv-stream
+    network_mode: host
+    privileged: true            # hot-plugged capture cards, ALSA and the GPU under /dev
+    restart: unless-stopped
+    env_file: .env              # HWACCEL, VAAPI_DEVICE, CAPTURE_* (read by capture.sh)
+    environment:
+      - LIBVA_DRIVER_NAME=${LIBVA_DRIVER_NAME:-iHD}
+    volumes:
+      - /dev:/dev
+      - ./go2rtc:/config
+      - /etc/localtime:/etc/localtime:ro
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  tanchtv-app:
+    build: ./app
+    image: tanchtv-app:local
+    container_name: tanchtv-app
+    network_mode: host
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data            # database, pairings and keys: back this up, never commit it
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - tanchtv-stream
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,urllib.request;urllib.request.urlopen('http://127.0.0.1:%s/healthz' % os.environ.get('PORT','8095'),timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

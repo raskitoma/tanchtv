@@ -1297,6 +1297,9 @@ async def session_ws(request):
             if d.get("type") == "key":
                 asyncio.create_task(_socket_key(request.app, v, ws, d))
                 continue
+            if d.get("type") == "switch":
+                await switch_followed(v, d.get("port"))
+                continue
             if d.get("type") == "status":
                 mode = "remote" if d.get("mode") == "remote" else "watch"
                 changed = mode != v.get("mode") or d.get("port") != v.get("port_id") or bool(d.get("playing")) != v["playing"]
@@ -1386,6 +1389,19 @@ async def push_follow(user_id):
             await v["control"].send_json(msg)
         except Exception:  # noqa: BLE001
             pass
+
+
+async def switch_followed(v, port):
+    """A remote-mode page picked another port while following: switch the screen it follows to it too."""
+    if v.get("mode") != "remote" or not isinstance(port, int):
+        return
+    t = follow_target(v["user_id"])
+    if not t or t["port_id"] == port or t["control"] is None or t["control"].closed:
+        return
+    try:
+        await t["control"].send_json({"type": "setport", "port": port, "by": v["device"]})
+    except Exception:  # noqa: BLE001
+        pass
 
 
 @routes.get("/api/admin/streams")

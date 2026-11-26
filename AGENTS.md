@@ -51,7 +51,9 @@ present) and `data/ports/<id>/` (pairing certificates, ADB keys).
   → `{type: "keyack", seq, ok, error?}`, run in order per page) instead of one HTTP POST each.
 - Remote mode (`uiMode === 'remote'`, `/remote`): the page never opens a video stream
   (`player.stopped = true`). `push_follow()` sends `{type: "follow", port, device}` to a user's
-  remote-mode pages whenever the port they're playing on another device changes.
+  remote-mode pages whenever the port they're playing on another device changes. It works the
+  other way too: picking another TV on a following phone sends `{type: "switch", port}`, and
+  `switch_followed()` tells the followed page `{type: "setport", port, by}` so it switches as well.
 - Gestures: `attachGestures(el, {onDir, onTap, onLong})` in `index.html` (pointer events; first
   arrow after 40 px, then one per 100 px; repeat every 280 ms after holding 650 ms; long press 550 ms). Used by the player
   layer `#glayer` (off by default) and the remote-mode touchpad `#pad`.

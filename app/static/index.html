@@ -1087,8 +1087,14 @@ $('btnPort').onclick = e => {
 $('portMenu').addEventListener('click', e => {
   const b = e.target.closest('[data-port]'); if (!b) return;
   $('portMenu').hidden = true;
-  if (uiMode === 'remote' && follow && +b.dataset.port !== curPort?.id) { setFollow(false); toast('Following is off: you picked a TV yourself.'); }
-  setPort(+b.dataset.port);
+  const id = +b.dataset.port;
+  if (uiMode === 'remote' && follow && id !== curPort?.id && followInfo.port) {
+    // Following another screen: switch that screen to this TV too, so both stay together.
+    ctl?.readyState === 1 && ctl.send(JSON.stringify({ type: 'switch', port: id }));
+    const p = ports.find(x => x.id === id);
+    if (p) toast(`Switching your ${followInfo.device || 'other screen'} to ${p.name} too.`);
+  }
+  setPort(id);
 });
 renderPortSel();
 if (!curPort) showNoPorts();
@@ -1121,6 +1127,7 @@ function openControl() {
     else if (m.type === 'resumed' && resumeWaiter) resumeWaiter();
     else if (m.type === 'keyack') onKeyAck(m);
     else if (m.type === 'follow') onFollow(m);
+    else if (m.type === 'setport') onSetPort(m);
   };
   ws.onclose = () => { if (ctl === ws) ctl = null; setTimeout(openControl, Math.min(30000, 1000 * 2 ** ctlRetry++)); };
 }
@@ -1562,6 +1569,11 @@ function onFollow(m) {
     setPort(m.port); buzz(20); toast(`Now controlling ${curPort.name}`);
   }
   renderFollow();
+}
+// Watch page: the user's phone (remote mode, following this screen) picked another TV.
+function onSetPort(m) {
+  if (uiMode !== 'watch' || !ports.some(p => p.id === m.port) || m.port === curPort?.id) return;
+  setPort(m.port); toast(`Your ${m.by || 'phone'} switched this to ${curPort.name}.`);
 }
 let previewTID = 0;
 function setPreview(on) {

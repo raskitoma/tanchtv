@@ -125,8 +125,10 @@ pages automatically, but a page kept open across several deploys runs its old co
   Text goes in through the input method, which only works in fields that use the system keyboard
   (e.g. the home-screen search). YouTube and Netflix draw their own keyboards and ignore both that
   and letter key presses: for YouTube the driver opens `vnd.youtube://results?search_query=…`
-  instead; Netflix has no search link that works (its grid wraps at the edges, so walking it
-  blind isn't reliable either). Launch YouTube with `vnd.youtube://`: an `https://` link opens an
+  instead; Netflix has no search link that works. Walking Netflix's letter grid blind was tried
+  and rejected: rows wrap at the edges, coming down from the wide space/delete keys lands under
+  their middle, presses faster than ~3/s get dropped, and once the focus guess was off an OK press
+  started playing a show. Don't ship it without checking the focus (e.g. from the captured picture). Launch YouTube with `vnd.youtube://`: an `https://` link opens an
   "Open with" chooser when another app (e.g. Downloader) also handles web links.
 - **Apple TV text**: pyatv `keyboard.text_set` works wherever tvOS shows its keyboard, YouTube included.
 - **HDCP**: none on the capture path; DRM apps may show black. **CEC**: not wired on MS2109.

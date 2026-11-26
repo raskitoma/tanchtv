@@ -18,6 +18,7 @@ import json
 import logging
 import shlex
 from pathlib import Path
+from urllib.parse import quote
 
 log = logging.getLogger("tanchtv.remotes")
 
@@ -52,6 +53,9 @@ APPS = {
     "twitch": {"name": "Twitch", "androidtv": ("twitch://open", "tv.twitch.android.app"),
                "firetv": "tv.twitch.android.viewer", "appletv": "tv.twitch"},
 }
+
+
+YOUTUBE_ATV = "com.google.android.youtube.tv"
 
 
 class RemoteError(Exception):
@@ -295,6 +299,11 @@ class AndroidTVRemote(AdbMixin, BaseRemote):
 
     async def text(self, text):
         if self.state == "connected":
+            # YouTube draws its own keyboard, which ignores both input-method text and letter key presses,
+            # so search it with its own deep link instead (opens the results for the text).
+            if self.atv.current_app == YOUTUBE_ATV:
+                self.atv.send_launch_app_command("vnd.youtube://results?search_query=" + quote(text))
+                return "youtube"
             try:
                 self.atv.send_text(text)
                 return "remote"

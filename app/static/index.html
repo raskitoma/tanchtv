@@ -1452,9 +1452,10 @@ $('textForm').addEventListener('submit', e => {
   e.preventDefault(); const t = $('textIn').value; if (!t) return;
   if (!curPort) return;
   $('textSend').disabled = true;
-  api(portUrl('/text'), { text: t }).then(() => {
+  api(portUrl('/text'), { text: t }).then(r => {
     $('textIn').value = '';
-    toast(curPort?.kind === 'appletv' ? 'Sent to the TV.' : 'Sent. If it doesn’t show up, open the search box on the TV first.');
+    toast(r.via === 'youtube' ? 'Searching YouTube for it.'
+      : curPort?.kind === 'appletv' ? 'Sent to the TV.' : 'Sent. If it doesn’t show up, open the search box on the TV first.');
   })
     .catch(err => toast(err.message, true)).finally(syncSend);
 });

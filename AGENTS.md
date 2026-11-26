@@ -122,6 +122,13 @@ pages automatically, but a page kept open across several deploys runs its old co
   Companion and MRP disagree right after changes (treated as "on if either says on").
   `BaseRemote` uses `self._wake` (an asyncio.Event): don't name driver methods `_wake`.
 - **Android TV**: pairing certificates per port in `data/ports/<id>/atv_*.pem`; ADB is optional.
+  Text goes in through the input method, which only works in fields that use the system keyboard
+  (e.g. the home-screen search). YouTube and Netflix draw their own keyboards and ignore both that
+  and letter key presses: for YouTube the driver opens `vnd.youtube://results?search_query=…`
+  instead; Netflix has no search link that works (its grid wraps at the edges, so walking it
+  blind isn't reliable either). Launch YouTube with `vnd.youtube://`: an `https://` link opens an
+  "Open with" chooser when another app (e.g. Downloader) also handles web links.
+- **Apple TV text**: pyatv `keyboard.text_set` works wherever tvOS shows its keyboard, YouTube included.
 - **HDCP**: none on the capture path; DRM apps may show black. **CEC**: not wired on MS2109.
 
 ## Ideas / open work

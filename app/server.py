@@ -588,25 +588,51 @@ async def admin_invite_delete(request):
     return web.json_response({"ok": True})
 
 
-# ---- VLC / external player links (admin) ----
+# ---- VLC / external player links (every signed-in user: their own links; admins: all) ----
 def stream_url(request, token: str) -> str:
     return f"{base_url(request)}/vlc/{token}/stream.ts"
 
 
-@routes.get("/api/admin/streamlinks")
-@admin_only
-async def admin_streamlinks(request):
+_link_fernet = None
+
+
+def link_fernet():
+    """Encrypts link tokens at rest (key in data/link.key), so a copied database alone doesn't give the links away
+    but their owner can still copy a link again later. Lookups use the token's hash, as before."""
+    global _link_fernet
+    if _link_fernet is None:
+        from cryptography.fernet import Fernet
+        kf = DATA / "link.key"
+        if not kf.exists():
+            kf.write_bytes(Fernet.generate_key())
+            os.chmod(kf, 0o600)
+        _link_fernet = Fernet(kf.read_bytes().strip())
+    return _link_fernet
+
+
+def _own_link(request, link_id):
+    """The link, if this user may manage it (their own, or any for admins)."""
+    link = db_(request).one("SELECT * FROM stream_links WHERE id=?", link_id)
+    u = request["user"]
+    if not link or not (is_admin(u) or link["created_by"] == u["id"]):
+        return None
+    return link
+
+
+@routes.get("/api/streamlinks")
+async def streamlinks(request):
+    u = request["user"]
     rows = db_(request).all(
         "SELECT l.id,l.name,l.created_at,l.expires_at,l.last_used,l.last_ip,u.username AS created_by,"
-        " l.port_id, l.follow, p.name AS port_name"
+        " l.port_id, l.follow, p.name AS port_name, (l.token_enc IS NOT NULL) AS can_copy"
         " FROM stream_links l LEFT JOIN users u ON u.id=l.created_by LEFT JOIN ports p ON p.id=l.port_id"
-        " ORDER BY l.created_at DESC")
+        + ("" if is_admin(u) else " WHERE l.created_by=?") + " ORDER BY l.created_at DESC",
+        *(() if is_admin(u) else (u["id"],)))
     return web.json_response(rows)
 
 
-@routes.post("/api/admin/streamlinks")
-@admin_only
-async def admin_streamlink_create(request):
+@routes.post("/api/streamlinks")
+async def streamlink_create(request):
     d = await body(request)
     db = db_(request)
     days = int(d.get("days", 0) or 0)
@@ -616,11 +642,26 @@ async def admin_streamlink_create(request):
     token = secrets.token_urlsafe(24)
     now = int(time.time())
     db.run(
-        "INSERT INTO stream_links(token_hash,name,created_by,created_at,expires_at,port_id,follow)"
-        " VALUES(?,?,?,?,?,?,?)",
+        "INSERT INTO stream_links(token_hash,name,created_by,created_at,expires_at,port_id,follow,token_enc)"
+        " VALUES(?,?,?,?,?,?,?,?)",
         hashlib.sha256(token.encode()).hexdigest(), str(d.get("name", "")).strip()[:60] or "VLC",
-        request["user"]["id"], now, now + days * 86400 if days > 0 else None, *src)
+        request["user"]["id"], now, now + days * 86400 if days > 0 else None, *src,
+        link_fernet().encrypt(token.encode()).decode())
     return web.json_response({"ok": True, "url": stream_url(request, token)})
+
+
+@routes.get("/api/streamlinks/{id}/url")
+async def streamlink_url(request):
+    link = _own_link(request, int(request.match_info["id"]))
+    if not link:
+        return jerr("No such link", 404)
+    if not link["token_enc"]:
+        return jerr("This link was made before links could be copied again. Create a new one to get a copyable link.")
+    try:
+        token = link_fernet().decrypt(link["token_enc"].encode()).decode()
+    except Exception:  # noqa: BLE001  (key file replaced)
+        return jerr("This link can't be shown any more. Create a new one.")
+    return web.json_response({"url": stream_url(request, token)})
 
 
 def _link_source(db, source, user_id):
@@ -629,23 +670,22 @@ def _link_source(db, source, user_id):
     if source == "follow":
         pid = LAST_PORT.get(user_id) or first_port_id(db)
         if not pid:
-            return None, "Add a port in Settings → Ports first."
+            return None, "No TV is set up yet."
         return (pid, 1), None
     try:
         pid = int(source or first_port_id(db) or 0)
     except (TypeError, ValueError):
         pid = 0
     if not db.port(pid):
-        return None, "Pick a port for the link (add one in Settings → Ports first)."
+        return None, "Pick a TV for the link."
     return (pid, 0), None
 
 
-@routes.post("/api/admin/streamlinks/{id}")
-@admin_only
-async def admin_streamlink_update(request):
+@routes.post("/api/streamlinks/{id}")
+async def streamlink_update(request):
     """Change a link's source. The link (URL) stays the same; VLC sessions playing it switch within seconds."""
     db = db_(request)
-    link = db.one("SELECT * FROM stream_links WHERE id=?", int(request.match_info["id"]))
+    link = _own_link(request, int(request.match_info["id"]))
     if not link:
         return jerr("No such link", 404)
     src, err = _link_source(db, (await body(request)).get("source"), link["created_by"])
@@ -657,10 +697,12 @@ async def admin_streamlink_update(request):
     return web.json_response({"ok": True})
 
 
-@routes.delete("/api/admin/streamlinks/{id}")
-@admin_only
-async def admin_streamlink_delete(request):
-    db_(request).run("DELETE FROM stream_links WHERE id=?", int(request.match_info["id"]))
+@routes.delete("/api/streamlinks/{id}")
+async def streamlink_delete(request):
+    link = _own_link(request, int(request.match_info["id"]))
+    if not link:
+        return jerr("No such link", 404)
+    db_(request).run("DELETE FROM stream_links WHERE id=?", link["id"])
     return web.json_response({"ok": True})
 
 

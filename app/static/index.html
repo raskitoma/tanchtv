@@ -258,14 +258,14 @@
 
   /* settings on phones: table rows become cards */
   @media (max-width: 600px) {
-    #settings .dlg-body { padding: 14px; }
+    :is(#settings, #vlcDlg) .dlg-body { padding: 14px; }
     .tabs { padding: 6px 10px 0; }
-    #settings table, #settings tbody, #settings tr, #settings td { display: block; width: 100%; }
-    #settings thead { display: none; }
-    #settings tr { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
-    #settings td { border: 0; padding: 4px 0; }
-    #settings td[data-l]::before { content: attr(data-l); color: var(--muted); font-size: 12px; display: inline-block; min-width: 76px; }
-    #settings td[data-l] { display: flex; align-items: center; gap: 10px; }
+    :is(#settings, #vlcDlg) table, :is(#settings, #vlcDlg) tbody, :is(#settings, #vlcDlg) tr, :is(#settings, #vlcDlg) td { display: block; width: 100%; }
+    :is(#settings, #vlcDlg) thead { display: none; }
+    :is(#settings, #vlcDlg) tr { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+    :is(#settings, #vlcDlg) td { border: 0; padding: 4px 0; }
+    :is(#settings, #vlcDlg) td[data-l]::before { content: attr(data-l); color: var(--muted); font-size: 12px; display: inline-block; min-width: 76px; }
+    :is(#settings, #vlcDlg) td[data-l] { display: flex; align-items: center; gap: 10px; }
     .input, select.input { font-size: 16px; }
     .linkbox { flex-wrap: wrap; } .linkbox .input { flex: 1 1 200px; }
     #account .dlg-body { padding: 14px; }
@@ -277,9 +277,9 @@
   .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line); }
   .dlg-head h2 { margin: 0; font-size: 16px; }
   .dlg-body { padding: 18px; }
-  #settings { width: min(760px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0 0 0 auto; border-radius: 0; border-width: 0 0 0 1px; }
-  #settings[open] { display: flex; flex-direction: column; }
-  #settings .dlg-body { overflow-y: auto; flex: 1; }
+  :is(#settings, #vlcDlg) { width: min(760px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0 0 0 auto; border-radius: 0; border-width: 0 0 0 1px; }
+  :is(#settings, #vlcDlg)[open] { display: flex; flex-direction: column; }
+  :is(#settings, #vlcDlg) .dlg-body { overflow-y: auto; flex: 1; }
   .tabs { display: flex; gap: 4px; padding: 8px 18px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
   .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; cursor: pointer; color: var(--muted); white-space: nowrap; }
   .tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
@@ -376,6 +376,7 @@
       <div class="who"><b id="menuName"></b><small id="menuRole"></small></div>
       <button id="mSettings" hidden>⚙ Settings</button>
       <button id="mMode" hidden>🎮 Remote mode</button>
+      <button id="mVlc">📺 VLC links</button>
       <button id="mAccount">👤 My account</button>
       <button id="mLogout">↪ Sign out</button>
     </div>
@@ -522,7 +523,6 @@
     <button data-tab="invites">Invites</button>
     <button data-tab="google">Google sign-in</button>
     <button data-tab="ports">Ports</button>
-    <button data-tab="vlc">VLC links</button>
   </nav>
   <div class="dlg-body">
     <!-- streams -->
@@ -647,40 +647,47 @@
         <div id="portsList"></div>
       </div>
     </section>
-    <!-- vlc -->
-    <section data-pane="vlc" hidden>
-      <div class="section">
-        <h3>New VLC link</h3>
-        <p class="help">A private link to the same stream (video + audio) for VLC or any player that opens network streams.
-          In VLC: <b>Media → Open Network Stream</b> (Ctrl+N), paste the link, press Play.
-          Anyone with the link can watch without signing in, so share it carefully. Revoking it stops playback within seconds.
-          Keep one link and change what it shows below (players already open switch over in a few seconds), or set it to
-          <b>Follow me</b>: it shows whichever TV you last switched to here, on the web page or the phone remote.</p>
-        <form class="card" id="vlcForm">
-          <div class="grid2">
-            <div class="field"><label for="vlcName">Name</label>
-              <input class="input" id="vlcName" maxlength="60" placeholder="e.g. Living-room PC"></div>
-            <div class="field"><label for="vlcPort">Shows</label>
-              <select class="input" id="vlcPort"></select></div>
-            <div class="field"><label for="vlcDays">Expires</label>
-              <select class="input" id="vlcDays"><option value="1">in 1 day</option><option value="7">in 7 days</option>
-                <option value="30">in 30 days</option><option value="0" selected>never</option></select></div>
-          </div>
-          <button class="btn accent" type="submit">Create VLC link</button>
-          <div id="vlcResult" hidden>
-            <div class="linkbox"><input class="input" id="vlcLink" readonly><button class="btn" type="button" id="vlcCopy">Copy</button></div>
-            <p class="help">Copy it now: for safety it can't be shown again (create a new one if you lose it).</p>
-          </div>
-        </form>
-      </div>
-      <div class="section">
-        <h3>Active links</h3>
-        <div class="tablewrap"><table>
-          <thead><tr><th>Name</th><th>Shows</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
-          <tbody id="vlcBody"></tbody>
-        </table></div>
-      </div>
-    </section>
+  </div>
+</dialog>
+
+<!-- ============ VLC links (every user: their own; admins: all) ============ -->
+<dialog id="vlcDlg">
+  <div class="dlg-head"><h2>VLC links</h2><button class="btn ghost small" data-close>✕</button></div>
+  <div class="dlg-body">
+    <div class="section">
+      <p class="help" style="margin-top:0">A private link to the TV picture and sound for VLC or any player that opens network streams.
+        In VLC: <b>Media → Open Network Stream</b> (Ctrl+N), paste the link, press Play.
+        Anyone with the link can watch without signing in, so share it carefully.</p>
+      <form class="card" id="vlcForm">
+        <div class="grid2">
+          <div class="field"><label for="vlcName">Name</label>
+            <input class="input" id="vlcName" maxlength="60" placeholder="e.g. Living-room PC"></div>
+          <div class="field"><label for="vlcPort">Shows</label>
+            <select class="input" id="vlcPort"></select></div>
+          <div class="field"><label for="vlcDays">Expires</label>
+            <select class="input" id="vlcDays"><option value="1">in 1 day</option><option value="7">in 7 days</option>
+              <option value="30">in 30 days</option><option value="0" selected>never</option></select></div>
+        </div>
+        <button class="btn accent" type="submit">Create link</button>
+      </form>
+      <p class="help"><b>Follow me</b> shows whichever TV you last switched to, here or on the phone remote.
+        You can change what a link shows at any time; players already open switch over in a few seconds.</p>
+    </div>
+    <div class="section">
+      <h3 id="vlcListTitle">Your links</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>Name</th><th>Shows</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
+        <tbody id="vlcBody"></tbody>
+      </table></div>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="vlcCopyDlg" style="width:min(560px, 94vw)">
+  <div class="dlg-head"><h2 id="vlcCopyTitle">VLC link</h2><button class="btn ghost small" data-close>✕</button></div>
+  <div class="dlg-body">
+    <div class="linkbox"><input class="input" id="vlcLink" readonly><button class="btn accent" type="button" id="vlcCopy">Copy</button></div>
+    <p class="help">Paste it in VLC: <b>Media → Open Network Stream</b> (Ctrl+N). You can copy it again here any time.</p>
   </div>
 </dialog>
 
@@ -801,6 +808,7 @@ document.addEventListener('click', e => {
 $('mLogout').onclick = async () => { await api('/api/logout').catch(() => {}); location.href = '/login'; };
 $('mAccount').onclick = () => { $('menu').hidden = true; openAccount(); };
 $('mSettings').onclick = () => { $('menu').hidden = true; openSettings(); };
+$('mVlc').onclick = () => { $('menu').hidden = true; $('vlcDlg').showModal(); loadVlc(); };
 document.querySelectorAll('dialog [data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
 
 // ================= video =================
@@ -1711,7 +1719,7 @@ function showTab(name) {
   currentTab = name;
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   document.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== name);
-  ({ streams: loadStreams, users: loadUsers, invites: loadInvites, google: loadSettings, ports: loadPortsAdmin, vlc: loadVlc })[name]();
+  ({ streams: loadStreams, users: loadUsers, invites: loadInvites, google: loadSettings, ports: loadPortsAdmin })[name]();
 }
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
 function openSettings(tab = 'streams') { if (!isAdmin) return; $('settings').showModal(); showTab(tab); }
@@ -1863,30 +1871,39 @@ $('googleForm').addEventListener('submit', async e => {
 });
 // ---- VLC links ----
 async function loadVlc() {
-  const rows = await getJSON('/api/admin/streamlinks');
+  const rows = await getJSON('/api/streamlinks');
+  $('vlcListTitle').textContent = isAdmin ? 'All links' : 'Your links';
   const now = Date.now() / 1000;
   const keep = $('vlcPort').value;
   $('vlcPort').innerHTML = ports.length ? srcOptions('') : '<option value="">No ports</option>';
   if (keep && [...$('vlcPort').options].some(o => o.value === keep)) $('vlcPort').value = keep; else if (curPort) $('vlcPort').value = curPort.id;
   $('vlcBody').innerHTML = rows.length ? rows.map(l => {
     const expired = l.expires_at && l.expires_at < now;
-    return `<tr data-id="${l.id}"><td><b>${esc(l.name)}</b><small>by ${esc(l.created_by || '—')} · ${esc(fmtDate(l.created_at))}</small></td>
+    return `<tr data-id="${l.id}"><td><b>${esc(l.name)}</b><small>${l.created_by && l.created_by !== user.username ? 'by ' + esc(l.created_by) + ' · ' : ''}${esc(fmtDate(l.created_at))}</small></td>
       <td data-l="Shows"><select class="input" style="width:auto;min-width:9rem;padding:6px 10px" data-f="source" aria-label="What this link shows">${srcOptions(l.follow ? 'follow' : String(l.port_id || ''))}</select>
         ${l.follow ? `<small>now: ${esc(l.port_name || '—')}</small>` : (l.port_name ? '' : '<span class="badge off">no port</span>')}</td>
       <td data-l="Expires">${expired ? '<span class="badge off">expired</span>' : l.expires_at ? esc(fmtDate(l.expires_at)) : 'never'}</td>
       <td data-l="Last used"><span>${l.last_used ? esc(fmtDate(l.last_used)) + ` · ${esc(l.last_ip || '')}` : 'never'}</span></td>
-      <td><button class="btn small danger" data-f="revoke">Revoke</button></td></tr>`;
+      <td><div style="display:flex;gap:6px;justify-content:flex-end">
+        <button class="btn small" data-f="copy" ${l.can_copy ? '' : 'disabled title="Made before links could be copied again: create a new one to get a copyable link."'}>Copy link</button>
+        <button class="btn small danger" data-f="revoke">Revoke</button></div></td></tr>`;
   }).join('') : '<tr><td colspan="5" class="help">No VLC links yet.</td></tr>';
 }
 $('vlcForm').addEventListener('submit', async e => {
   e.preventDefault();
   try {
     const src = $('vlcPort').value;
-    const r = await api('/api/admin/streamlinks', { name: $('vlcName').value.trim(), days: +$('vlcDays').value, source: src === 'follow' ? src : +src });
-    $('vlcLink').value = r.url; $('vlcResult').hidden = false; $('vlcLink').select(); $('vlcName').value = '';
+    const name = $('vlcName').value.trim() || 'VLC';
+    const r = await api('/api/streamlinks', { name, days: +$('vlcDays').value, source: src === 'follow' ? src : +src });
+    $('vlcName').value = '';
     loadVlc();
+    showVlcLink(name, r.url);
   } catch (err) { toast(err.message, true); }
 });
+function showVlcLink(name, url) {
+  $('vlcCopyTitle').textContent = name; $('vlcLink').value = url;
+  $('vlcCopyDlg').showModal(); $('vlcLink').select();
+}
 $('vlcCopy').onclick = () => copy($('vlcLink').value);
 // Options for "what a VLC link shows": follow me, or one of the TVs.
 function srcOptions(sel) {
@@ -1897,16 +1914,21 @@ $('vlcBody').addEventListener('change', async e => {
   if (e.target.dataset.f !== 'source') return;
   const tr = e.target.closest('tr'), v = e.target.value;
   try {
-    await api(`/api/admin/streamlinks/${tr.dataset.id}`, { source: v === 'follow' ? v : +v });
+    await api(`/api/streamlinks/${tr.dataset.id}`, { source: v === 'follow' ? v : +v });
     toast(v === 'follow' ? 'This link now follows the TV you switch to.' : 'Changed. Players already open switch over in a few seconds.');
   } catch (err) { toast(err.message, true); }
   loadVlc();
 });
 $('vlcBody').addEventListener('click', async e => {
-  if (e.target.dataset.f !== 'revoke') return;
-  const tr = e.target.closest('tr');
+  const f = e.target.closest('[data-f]')?.dataset.f, tr = e.target.closest('tr');
+  if (f === 'copy') {
+    try { showVlcLink(tr.querySelector('b').textContent, (await getJSON(`/api/streamlinks/${tr.dataset.id}/url`)).url); }
+    catch (err) { toast(err.message, true); }
+    return;
+  }
+  if (f !== 'revoke') return;
   if (!confirm(`Revoke “${tr.querySelector('b').textContent}”? Anyone using it stops watching.`)) return;
-  try { await api(`/api/admin/streamlinks/${tr.dataset.id}`, undefined, 'DELETE'); toast('Link revoked.'); } catch (err) { toast(err.message, true); }
+  try { await api(`/api/streamlinks/${tr.dataset.id}`, undefined, 'DELETE'); toast('Link revoked.'); } catch (err) { toast(err.message, true); }
   loadVlc();
 });
 

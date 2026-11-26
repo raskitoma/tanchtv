@@ -128,6 +128,8 @@ class DB:
                 self.conn.execute("ALTER TABLE stream_links ADD COLUMN port_id INTEGER")
             if "follow" not in cols:    # 1 = show the TV the link's creator last picked (port_id = last shown)
                 self.conn.execute("ALTER TABLE stream_links ADD COLUMN follow INTEGER NOT NULL DEFAULT 0")
+            if "token_enc" not in cols:  # the link's token, encrypted with data/link.key, so it can be copied again
+                self.conn.execute("ALTER TABLE stream_links ADD COLUMN token_enc TEXT")
 
     # ---- low level ----
     def all(self, sql, *a) -> list[dict]:

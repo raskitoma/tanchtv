@@ -34,7 +34,8 @@ docs/screenshots/        images used by the README.
 ```
 
 Data (git-ignored, back it up): `data/tanchtv.db` (older installs: `tvremoter.db`, still used if
-present) and `data/ports/<id>/` (pairing certificates, ADB keys).
+present), `data/ports/<id>/` (pairing certificates, ADB keys) and `data/link.key` (encrypts VLC link
+tokens; lose it and existing links can't be copied again, though they keep working).
 
 ## How the pieces talk
 
@@ -72,11 +73,13 @@ API: see the `@routes` decorators in `server.py` (grouped by section banners).
   pyatv 0.18 needs **srptools 1.x**: 2.0 breaks Apple TV pairing).
 - No frontend framework, no bundler: edit `index.html` / `login.html` directly. The page script is
   one `<script type="module">`; keep helpers before the classes that use them at load time.
-- Admin-only UI and endpoints for anything that changes settings. Viewers only watch (and use the
+- Admin-only UI and endpoints for anything that changes settings. Viewers watch, make their own VLC links (and use the
   remote if granted).
 - User-facing text: short, plain English, says what to do next.
-- Never log or return secrets (Google client secret, session tokens, VLC tokens, pairing keys).
-  VLC link tokens and invite tokens are stored hashed.
+- Never log or return secrets (Google client secret, session tokens, VLC tokens, pairing keys); the one
+  exception: a VLC link is shown to its owner (and admins) on request.
+  Invite tokens are stored hashed. VLC link tokens are looked up by hash and also kept encrypted
+  (Fernet, `data/link.key`) so their owner can copy the link again; links made before that can't be shown.
 
 ## Checking changes
 
@@ -112,6 +115,8 @@ pages automatically, but a page kept open across several deploys runs its old co
 - **Audio**: `aresample=async=1` in `capture.sh` is essential; without it WebRTC sounds robotic.
 - **go2rtc**: its MPEG-TS has no PCR (VLC drifts ~10 s behind), so VLC links remux with ffmpeg
   (`-pcr_period 20`); its RTSP AAC track sends nothing, so VLC links take Opus and convert to AAC.
+- **VLC links** are their own section (`#vlcDlg`, user menu), not Settings: `/api/streamlinks*`, every user
+  manages their own links, admins all (`_own_link`).
 - **VLC link sources**: `stream_links.port_id` + `follow`. Follow = `LAST_PORT[creator]`, the TV last
   switched to on any of their pages (a page just opening on its saved TV doesn't count). `vlc_stream`
   re-checks every 1.5 s and swaps the ffmpeg process inside the same HTTP response, with

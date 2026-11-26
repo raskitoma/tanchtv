@@ -75,8 +75,10 @@ Prefer to do it yourself? See [Manual installation](#manual-installation).
 - **Streams** panel: who is watching what, from where, over which path; stop or sign people out.
   Streams paused or abandoned for 120 s stop by themselves.
 - **VLC links**: private `…/vlc/<token>/stream.ts` URLs (MPEG-TS, H.264 + AAC) for VLC, OBS or a
-  Stream Deck button; revocable, optional expiry. One link can show any TV: change what it shows in
-  Settings, or set it to *Follow me* (the TV you last switched to); open players switch over in seconds.
+  Stream Deck button, in their own **VLC links** section (user menu): every user manages their own,
+  admins see all. Copy a link again any time; revocable, optional expiry. One link can show any TV:
+  change what it shows, or set it to *Follow me* (the TV you last switched to); open players switch
+  over in seconds.
 - **Ports** settings: pick a capture card, the box type and its address, pair with a live picture
   of the TV in a pop-up so you can read the code.
 

@@ -598,7 +598,7 @@ def stream_url(request, token: str) -> str:
 async def admin_streamlinks(request):
     rows = db_(request).all(
         "SELECT l.id,l.name,l.created_at,l.expires_at,l.last_used,l.last_ip,u.username AS created_by,"
-        " l.port_id, p.name AS port_name"
+        " l.port_id, l.follow, p.name AS port_name"
         " FROM stream_links l LEFT JOIN users u ON u.id=l.created_by LEFT JOIN ports p ON p.id=l.port_id"
         " ORDER BY l.created_at DESC")
     return web.json_response(rows)
@@ -610,19 +610,51 @@ async def admin_streamlink_create(request):
     d = await body(request)
     db = db_(request)
     days = int(d.get("days", 0) or 0)
-    try:
-        port_id = int(d.get("port") or first_port_id(db) or 0)
-    except (TypeError, ValueError):
-        port_id = 0
-    if not db.port(port_id):
-        return jerr("Pick a port for the link (add one in Settings → Ports first).")
+    src, err = _link_source(db, d.get("source", d.get("port")), request["user"]["id"])
+    if err:
+        return jerr(err)
     token = secrets.token_urlsafe(24)
     now = int(time.time())
     db.run(
-        "INSERT INTO stream_links(token_hash,name,created_by,created_at,expires_at,port_id) VALUES(?,?,?,?,?,?)",
+        "INSERT INTO stream_links(token_hash,name,created_by,created_at,expires_at,port_id,follow)"
+        " VALUES(?,?,?,?,?,?,?)",
         hashlib.sha256(token.encode()).hexdigest(), str(d.get("name", "")).strip()[:60] or "VLC",
-        request["user"]["id"], now, now + days * 86400 if days > 0 else None, port_id)
+        request["user"]["id"], now, now + days * 86400 if days > 0 else None, *src)
     return web.json_response({"ok": True, "url": stream_url(request, token)})
+
+
+def _link_source(db, source, user_id):
+    """A VLC link's source: a port id, or "follow" (the TV this user last switched to).
+    Returns ((port_id, follow), None) or (None, error)."""
+    if source == "follow":
+        pid = LAST_PORT.get(user_id) or first_port_id(db)
+        if not pid:
+            return None, "Add a port in Settings → Ports first."
+        return (pid, 1), None
+    try:
+        pid = int(source or first_port_id(db) or 0)
+    except (TypeError, ValueError):
+        pid = 0
+    if not db.port(pid):
+        return None, "Pick a port for the link (add one in Settings → Ports first)."
+    return (pid, 0), None
+
+
+@routes.post("/api/admin/streamlinks/{id}")
+@admin_only
+async def admin_streamlink_update(request):
+    """Change a link's source. The link (URL) stays the same; VLC sessions playing it switch within seconds."""
+    db = db_(request)
+    link = db.one("SELECT * FROM stream_links WHERE id=?", int(request.match_info["id"]))
+    if not link:
+        return jerr("No such link", 404)
+    src, err = _link_source(db, (await body(request)).get("source"), link["created_by"])
+    if err:
+        return jerr(err)
+    if src[1] and link["follow"]:
+        src = (link["port_id"] or src[0], 1)      # already following: keep the TV it's on
+    db.run("UPDATE stream_links SET port_id=?, follow=? WHERE id=?", *src, link["id"])
+    return web.json_response({"ok": True})
 
 
 @routes.delete("/api/admin/streamlinks/{id}")
@@ -641,10 +673,7 @@ async def vlc_stream(request):
                   hashlib.sha256(request.match_info["token"].encode()).hexdigest())
     if not link or (link["expires_at"] and link["expires_at"] < time.time()):
         return web.Response(status=404, text="This stream link is invalid, expired or revoked.\n")
-    port = db.port(link["port_id"]) if link["port_id"] else None
-    if port is None:
-        ps = db.ports()
-        port = ps[0] if ps else None
+    port = link_port(db, link)
     if port is None:
         return web.Response(status=404, text="This stream link's port no longer exists.\n")
     db.run("UPDATE stream_links SET last_used=?, last_ip=? WHERE id=?", int(time.time()), client_ip(request), link["id"])
@@ -654,18 +683,8 @@ async def vlc_stream(request):
     resp = web.StreamResponse(headers={"Content-Type": "video/mp2t", "Cache-Control": "no-store",
                                        "X-Accel-Buffering": "no"})
     await resp.prepare(request)
-    # MPEG-TS made by ffmpeg from go2rtc's RTSP so it carries a proper PCR clock every 20 ms. go2rtc's own
-    # /api/stream.ts has no PCR: VLC then improvises a clock and keeps drifting further behind live.
-    # Video is copied (no re-encode). Audio: go2rtc's RTSP announces the AAC track but sends no packets on it
-    # (ffmpeg then waits 10 s and outputs no sound), so take the Opus track and convert it to AAC.
-    proc = await asyncio.create_subprocess_exec(
-        "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
-        "-fflags", "nobuffer", "-analyzeduration", "500000", "-probesize", "500000",
-        "-rtsp_transport", "tcp", "-i", f"{GO2RTC_RTSP}/{stream_names(port['id'])[0]}?video=h264&audio=opus",
-        "-map", "0:v", "-map", "0:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
-        "-f", "mpegts", "-pcr_period", "20", "-muxdelay", "0", "-muxpreload", "0",
-        "-flush_packets", "1", "pipe:1",
-        stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+    started = time.monotonic()
+    proc = await _vlc_ffmpeg(port["id"], 0)
     try:
         checked = time.monotonic()
         while True:
@@ -675,22 +694,66 @@ async def vlc_stream(request):
             await resp.write(chunk)                     # blocks while the player isn't reading (paused)
             v["bytes"] += len(chunk)
             v["last_progress"] = v["last_seen"] = time.time()
-            # Every 5 s: revoking a link also cuts a VLC session that's already playing.
-            if time.monotonic() - checked > 5:
+            # Every 1.5 s: a revoked link cuts the session; a changed source switches it in the same connection.
+            if time.monotonic() - checked > 1.5:
                 checked = time.monotonic()
-                if not db.one("SELECT 1 FROM stream_links WHERE id=?", link["id"]):
+                link = db.one("SELECT * FROM stream_links WHERE id=?", link["id"])
+                if not link:
                     break
+                want = link_port(db, link)
+                if want and want["id"] != port["id"]:
+                    log.info("VLC link %s: switching to %s", link["name"], want["name"])
+                    await _stop(proc)
+                    port = want
+                    v["port_id"] = port["id"]
+                    # keep the clock going forward so the player treats it as the same programme
+                    proc = await _vlc_ffmpeg(port["id"], time.monotonic() - started)
     except (ConnectionResetError, asyncio.CancelledError, asyncio.TimeoutError, aiohttp.ClientError):
         pass
     finally:
         viewers.s.pop(sid, None)
-        if proc.returncode is None:
-            proc.kill()
-            try:
-                await asyncio.wait_for(proc.wait(), 5)
-            except Exception:  # noqa: BLE001
-                pass
+        await _stop(proc)
     return resp
+
+
+def link_port(db, link):
+    """The port a VLC link shows now: its fixed port, or (follow) the TV its creator last switched to."""
+    pid = link["port_id"]
+    if link.get("follow"):
+        last = LAST_PORT.get(link["created_by"])
+        if last and last != pid and db.port(last):
+            db.run("UPDATE stream_links SET port_id=? WHERE id=?", last, link["id"])   # remembered across restarts
+            pid = last
+    port = db.port(pid) if pid else None
+    if port is None:
+        ps = db.ports()
+        port = ps[0] if ps else None
+    return port
+
+
+async def _vlc_ffmpeg(port_id, ts_offset):
+    # MPEG-TS made by ffmpeg from go2rtc's RTSP so it carries a proper PCR clock every 20 ms. go2rtc's own
+    # /api/stream.ts has no PCR: VLC then improvises a clock and keeps drifting further behind live.
+    # Video is copied (no re-encode). Audio: go2rtc's RTSP announces the AAC track but sends no packets on it
+    # (ffmpeg then waits 10 s and outputs no sound), so take the Opus track and convert it to AAC.
+    # ts_offset: seconds already streamed on this connection, so timestamps keep going up after a switch.
+    return await asyncio.create_subprocess_exec(
+        "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
+        "-fflags", "nobuffer", "-analyzeduration", "500000", "-probesize", "500000",
+        "-rtsp_transport", "tcp", "-i", f"{GO2RTC_RTSP}/{stream_names(port_id)[0]}?video=h264&audio=opus",
+        "-map", "0:v", "-map", "0:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
+        "-f", "mpegts", "-pcr_period", "20", "-muxdelay", "0", "-muxpreload", "0",
+        "-output_ts_offset", f"{ts_offset:.3f}", "-flush_packets", "1", "pipe:1",
+        stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+
+
+async def _stop(proc):
+    if proc.returncode is None:
+        proc.kill()
+        try:
+            await asyncio.wait_for(proc.wait(), 5)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 @routes.get("/api/admin/settings")
@@ -1307,6 +1370,11 @@ async def session_ws(request):
                 v["visible"], v["playing"] = bool(d.get("visible")), bool(d.get("playing"))
                 v["path"], v["quality"] = str(d.get("path", ""))[:40], str(d.get("quality", ""))[:4]
                 if isinstance(d.get("port"), int):
+                    # A real switch on any of the user's pages (or their first pick) is what "Follow me" VLC
+                    # links show; another page merely opening on its saved TV doesn't move them.
+                    uid = v["user_id"]
+                    if uid is not None and (v["port_id"] not in (None, d["port"]) or uid not in LAST_PORT):
+                        LAST_PORT[uid] = d["port"]
                     v["port_id"] = d["port"]
                 if v["playing"] or mode == "remote":    # hidden/minimized/other tab but playing = still watched
                     v["idle_since"] = None
@@ -1357,6 +1425,10 @@ async def _socket_key(app, v, ws, d):
             await ws.send_json({"type": "keyack", "seq": seq, "ok": err is None, **({"error": err} if err else {})})
         except Exception:  # noqa: BLE001
             pass
+
+
+# The TV each user last switched to on any of their pages (watch or remote): what "Follow me" VLC links show.
+LAST_PORT: dict[int, int] = {}
 
 
 def follow_target(user_id):

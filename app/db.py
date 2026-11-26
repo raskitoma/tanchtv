@@ -126,6 +126,8 @@ class DB:
             cols = {r[1] for r in self.conn.execute("PRAGMA table_info(stream_links)")}
             if "port_id" not in cols:   # VLC links belong to a port (older links: first port)
                 self.conn.execute("ALTER TABLE stream_links ADD COLUMN port_id INTEGER")
+            if "follow" not in cols:    # 1 = show the TV the link's creator last picked (port_id = last shown)
+                self.conn.execute("ALTER TABLE stream_links ADD COLUMN follow INTEGER NOT NULL DEFAULT 0")
 
     # ---- low level ----
     def all(self, sql, *a) -> list[dict]:

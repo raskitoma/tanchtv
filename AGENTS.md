@@ -112,6 +112,10 @@ pages automatically, but a page kept open across several deploys runs its old co
 - **Audio**: `aresample=async=1` in `capture.sh` is essential; without it WebRTC sounds robotic.
 - **go2rtc**: its MPEG-TS has no PCR (VLC drifts ~10 s behind), so VLC links remux with ffmpeg
   (`-pcr_period 20`); its RTSP AAC track sends nothing, so VLC links take Opus and convert to AAC.
+- **VLC link sources**: `stream_links.port_id` + `follow`. Follow = `LAST_PORT[creator]`, the TV last
+  switched to on any of their pages (a page just opening on its saved TV doesn't count). `vlc_stream`
+  re-checks every 1.5 s and swaps the ffmpeg process inside the same HTTP response, with
+  `-output_ts_offset` = seconds streamed so timestamps keep rising; VLC plays through it (~2 s gap).
   `preload` keeps streams warm so the first viewer doesn't wait 10–20 s.
 - **iPhone Safari**: autoplay only muted (the page starts muted + "Tap to start"); no WebRTC
   `loadeddata` on the helper element, so `TvPlayer.onwebrtc` switches on real inbound frames;

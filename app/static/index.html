@@ -653,12 +653,14 @@
         <h3>New VLC link</h3>
         <p class="help">A private link to the same stream (video + audio) for VLC or any player that opens network streams.
           In VLC: <b>Media → Open Network Stream</b> (Ctrl+N), paste the link, press Play.
-          Anyone with the link can watch without signing in, so share it carefully. Revoking it stops playback within seconds.</p>
+          Anyone with the link can watch without signing in, so share it carefully. Revoking it stops playback within seconds.
+          Keep one link and change what it shows below (players already open switch over in a few seconds), or set it to
+          <b>Follow me</b>: it shows whichever TV you last switched to here, on the web page or the phone remote.</p>
         <form class="card" id="vlcForm">
           <div class="grid2">
             <div class="field"><label for="vlcName">Name</label>
               <input class="input" id="vlcName" maxlength="60" placeholder="e.g. Living-room PC"></div>
-            <div class="field"><label for="vlcPort">Port</label>
+            <div class="field"><label for="vlcPort">Shows</label>
               <select class="input" id="vlcPort"></select></div>
             <div class="field"><label for="vlcDays">Expires</label>
               <select class="input" id="vlcDays"><option value="1">in 1 day</option><option value="7">in 7 days</option>
@@ -674,7 +676,7 @@
       <div class="section">
         <h3>Active links</h3>
         <div class="tablewrap"><table>
-          <thead><tr><th>Name</th><th>Port</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Shows</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
           <tbody id="vlcBody"></tbody>
         </table></div>
       </div>
@@ -1864,12 +1866,13 @@ async function loadVlc() {
   const rows = await getJSON('/api/admin/streamlinks');
   const now = Date.now() / 1000;
   const keep = $('vlcPort').value;
-  $('vlcPort').innerHTML = ports.length ? ports.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('') : '<option value="">No ports</option>';
-  if (keep && ports.some(p => String(p.id) === keep)) $('vlcPort').value = keep; else if (curPort) $('vlcPort').value = curPort.id;
+  $('vlcPort').innerHTML = ports.length ? srcOptions('') : '<option value="">No ports</option>';
+  if (keep && [...$('vlcPort').options].some(o => o.value === keep)) $('vlcPort').value = keep; else if (curPort) $('vlcPort').value = curPort.id;
   $('vlcBody').innerHTML = rows.length ? rows.map(l => {
     const expired = l.expires_at && l.expires_at < now;
     return `<tr data-id="${l.id}"><td><b>${esc(l.name)}</b><small>by ${esc(l.created_by || '—')} · ${esc(fmtDate(l.created_at))}</small></td>
-      <td data-l="Port">${l.port_name ? esc(l.port_name) : '<span class="badge off">no port</span>'}</td>
+      <td data-l="Shows"><select class="input" style="width:auto;min-width:9rem;padding:6px 10px" data-f="source" aria-label="What this link shows">${srcOptions(l.follow ? 'follow' : String(l.port_id || ''))}</select>
+        ${l.follow ? `<small>now: ${esc(l.port_name || '—')}</small>` : (l.port_name ? '' : '<span class="badge off">no port</span>')}</td>
       <td data-l="Expires">${expired ? '<span class="badge off">expired</span>' : l.expires_at ? esc(fmtDate(l.expires_at)) : 'never'}</td>
       <td data-l="Last used"><span>${l.last_used ? esc(fmtDate(l.last_used)) + ` · ${esc(l.last_ip || '')}` : 'never'}</span></td>
       <td><button class="btn small danger" data-f="revoke">Revoke</button></td></tr>`;
@@ -1878,12 +1881,27 @@ async function loadVlc() {
 $('vlcForm').addEventListener('submit', async e => {
   e.preventDefault();
   try {
-    const r = await api('/api/admin/streamlinks', { name: $('vlcName').value.trim(), days: +$('vlcDays').value, port: +$('vlcPort').value });
+    const src = $('vlcPort').value;
+    const r = await api('/api/admin/streamlinks', { name: $('vlcName').value.trim(), days: +$('vlcDays').value, source: src === 'follow' ? src : +src });
     $('vlcLink').value = r.url; $('vlcResult').hidden = false; $('vlcLink').select(); $('vlcName').value = '';
     loadVlc();
   } catch (err) { toast(err.message, true); }
 });
 $('vlcCopy').onclick = () => copy($('vlcLink').value);
+// Options for "what a VLC link shows": follow me, or one of the TVs.
+function srcOptions(sel) {
+  const o = (v, t) => `<option value="${v}"${v === sel ? ' selected' : ''}>${esc(t)}</option>`;
+  return o('follow', 'Follow me') + ports.map(p => o(String(p.id), p.name)).join('');
+}
+$('vlcBody').addEventListener('change', async e => {
+  if (e.target.dataset.f !== 'source') return;
+  const tr = e.target.closest('tr'), v = e.target.value;
+  try {
+    await api(`/api/admin/streamlinks/${tr.dataset.id}`, { source: v === 'follow' ? v : +v });
+    toast(v === 'follow' ? 'This link now follows the TV you switch to.' : 'Changed. Players already open switch over in a few seconds.');
+  } catch (err) { toast(err.message, true); }
+  loadVlc();
+});
 $('vlcBody').addEventListener('click', async e => {
   if (e.target.dataset.f !== 'revoke') return;
   const tr = e.target.closest('tr');

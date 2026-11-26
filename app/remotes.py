@@ -39,7 +39,7 @@ KEYS = {
 # App shortcuts: per device type a launch target (Android TV: (deep link, package); Fire TV: package;
 # Apple TV: bundle id).
 APPS = {
-    "youtube": {"name": "YouTube", "androidtv": ("https://www.youtube.com", "com.google.android.youtube.tv"),
+    "youtube": {"name": "YouTube", "androidtv": ("vnd.youtube://", "com.google.android.youtube.tv"),
                 "firetv": "com.amazon.firetv.youtube", "appletv": "com.google.ios.youtube"},
     "netflix": {"name": "Netflix", "androidtv": ("https://www.netflix.com/title", "com.netflix.ninja"),
                 "firetv": "com.netflix.ninja", "appletv": "com.netflix.Netflix"},

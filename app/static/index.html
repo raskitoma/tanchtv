@@ -499,7 +499,7 @@
         <summary>Apps &amp; keyboard ▾</summary>
         <div class="apps" id="apps"></div>
         <form class="textrow" id="textForm">
-          <input class="input" id="textIn" placeholder="Type on the TV…" autocomplete="off" enterkeyhint="send" aria-label="Text to type on the TV">
+          <input class="input" id="textIn" type="text" placeholder="Type on the TV…" autocomplete="off" enterkeyhint="send" aria-label="Text to type on the TV">
           <button class="sendbtn" id="textSend" type="submit" title="Send to the TV" aria-label="Send to the TV" disabled>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </button>
@@ -1360,7 +1360,7 @@ const canHideRemote = () => !pinned && (!narrow.matches || isFull());
 function hideIdle(force = false) {
   // Keep controls up while the mouse is over the remote or someone is typing text.
   const a = document.activeElement;
-  const typing = a && wrap.contains(a) && a.matches?.('input[type=text], textarea');
+  const typing = a && wrap.contains(a) && a.matches?.('input:not([type]), input[type=text], input[type=search], textarea');
   if (!force && (overRemote || typing)) { schedule(); return; }
   stage.classList.add('idle');
   if (canHideRemote()) remote.classList.add('hide');
@@ -1450,9 +1450,12 @@ const syncSend = () => { $('textSend').disabled = !$('textIn').value; };
 $('textIn').addEventListener('input', syncSend);
 $('textForm').addEventListener('submit', e => {
   e.preventDefault(); const t = $('textIn').value; if (!t) return;
-  $('textSend').disabled = true;
   if (!curPort) return;
-  api(portUrl('/text'), { text: t }).then(() => { $('textIn').value = ''; toast('Sent to the TV.'); })
+  $('textSend').disabled = true;
+  api(portUrl('/text'), { text: t }).then(() => {
+    $('textIn').value = '';
+    toast(curPort?.kind === 'appletv' ? 'Sent to the TV.' : 'Sent. If it doesn’t show up, open the search box on the TV first.');
+  })
     .catch(err => toast(err.message, true)).finally(syncSend);
 });
 function renderApps() {
